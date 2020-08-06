@@ -1,0 +1,50 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>org.coherent</groupId>
+	<artifactId>coherent-parent</artifactId>
+	<version>1.0.0</version>
+	<packaging>pom</packaging>
+	<name>Coherent</name>
+	<description>Monadic command library for Java</description>
+
+	<distributionManagement>
+		<repository>
+			<id>coherent-maven</id>
+			<name>coherent-maven</name>
+			<url>https://api.bintray.com/maven/yuxuanchiadm/coherent-maven/coherent/;publish=1</url>
+		</repository>
+	</distributionManagement>
+
+	<repositories>
+		<repository>
+			<id>monadium-maven</id>
+			<name>monadium-maven</name>
+			<url>https://dl.bintray.com/yuxuanchiadm/monadium-maven/</url>
+		</repository>
+        <repository>
+            <id>jparsec-maven</id>
+			<name>jparsec-maven</name>
+            <url>https://dl.bintray.com/yuxuanchiadm/jparsec-maven/</url>
+        </repository>
+	</repositories>
+
+	<developers>
+		<developer>
+			<id>yuxuanchiadm</id>
+			<name>Yu Xuanchi</name>
+			<email>yuxuanchiadm@126.com</email>
+			<roles>
+				<role>Author</role>
+				<role>Architect</role>
+				<role>Committer</role>
+			</roles>
+			<timezone>+8</timezone>
+		</developer>
+	</developers>
+
+	<modules>
+		<module>coherent-core</module>
+	</modules>
+</project>
