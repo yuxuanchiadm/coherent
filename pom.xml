@@ -23,11 +23,11 @@
 			<name>monadium-maven</name>
 			<url>https://dl.bintray.com/yuxuanchiadm/monadium-maven/</url>
 		</repository>
-        <repository>
-            <id>jparsec-maven</id>
+		<repository>
+			<id>jparsec-maven</id>
 			<name>jparsec-maven</name>
-            <url>https://dl.bintray.com/yuxuanchiadm/jparsec-maven/</url>
-        </repository>
+			<url>https://dl.bintray.com/yuxuanchiadm/jparsec-maven/</url>
+		</repository>
 	</repositories>
 
 	<developers>
