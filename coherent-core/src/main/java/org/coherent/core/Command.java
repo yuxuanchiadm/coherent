@@ -1,11 +1,15 @@
 package org.coherent.core;
 
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.coherent.core.Command.Context;
 import static org.coherent.core.Command.Context.*;
+import org.coherent.core.Command.Completion;
+import static org.coherent.core.Command.Completion.*;
 import org.coherent.core.Command.Parameter;
 import static org.coherent.core.Command.Parameter.*;
 import org.coherent.core.Command.Flow;
@@ -53,7 +57,6 @@ import org.monadium.core.data.Unit;
 import static org.monadium.core.data.Unit.*;
 
 import static org.monadium.core.data.List.Notation.*;
-
 import static org.monadium.core.Notation.*;
 
 public abstract class Command<S, C, A> {
@@ -97,32 +100,86 @@ public abstract class Command<S, C, A> {
 
 		public Tuple<S, C> environment() { return tuple(source, context); }
 	}
+	public static final class Completion {
+		final Text completion;
+		final Location location;
+
+		Completion(Text completion, Location location) { this.completion = completion; this.location = location; }
+
+		public static Completion completion(Text completion, Location location) { return new Completion(completion, location); }
+
+		public Text completion() { return completion; }
+		public Location location() { return location; }
+
+		@Override public String toString() { return Escaper.escapeString(completion.toString()) + " at " + location.toString(); }
+		@Override public boolean equals(Object x) { return x instanceof Completion && Objects.equals(completion, ((Completion) x).completion) && Objects.equals(location, ((Completion) x).location); }
+		@Override public int hashCode() { return Objects.hash(completion, location); }
+	}
 	public static final class Parameter<S, C, A> {
 		final String name;
 		final String description;
 		final Parser<Text, Context<S, C>, Bottom, A> parser;
-		final BiFunction<Text, Context<S, C>, List<Text>> completer;
+		final Parser<Text, Context<S, C>, Bottom, List<Completion>> completer;
 
-		Parameter(String name, String description, Parser<Text, Context<S, C>, Bottom, A> parser, BiFunction<Text, Context<S, C>, List<Text>> completer) { this.name = name; this.description = description; this.parser = parser; this.completer = completer; }
+		Parameter(String name, String description, Parser<Text, Context<S, C>, Bottom, A> parser, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) { this.name = name; this.description = description; this.parser = parser; this.completer = completer; }
 
-		public static <S, C, A> Parameter<S, C, A> parameter(String name, String description, Parser<Text, Context<S, C>, Bottom, A> parser, BiFunction<Text, Context<S, C>, List<Text>> completer) { return new Parameter<>(name, description, parser, completer); }
+		public static <S, C, A> Parameter<S, C, A> parameter(String name, String description, Parser<Text, Context<S, C>, Bottom, A> parser, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) { return new Parameter<>(name, description, parser, completer); }
+		public static <S, C, A> Parameter<S, C, A> parameter(String name, String description, Definition<S, C, A> definition) {
+			return parameter(
+				name,
+				description,
+				recur(() -> parseBody($do(
+				$(  definition.<Bottom> body()	, flow ->
+				$(  evaluate(evalFlow(flow))	))
+				))),
+				$do(
+				$(	recur(() -> analyzeBody($do(
+					$(  definition.<Bottom> body()	, flow ->
+					$(  evaluate(evalFlow(flow))	))
+					)))											, result ->
+				$(	simple(result.fromLeft(nil()))				))
+				)
+			);
+		}
 
 		public String name() { return name; }
 		public String description() { return description; }
 		public Parser<Text, Context<S, C>, Bottom, A> parser() { return parser; }
-		public BiFunction<Text, Context<S, C>, List<Text>> completer() { return completer; }
+		public Parser<Text, Context<S, C>, Bottom, List<Completion>> completer() { return completer; }
 
 		public static <S, C, A, B> Parameter<S, C, B> specialize(Parameter<S, C, A> parameter, Function<A, B> f) { return parameter.map(f); }
+		public static <S, C, A> Parameter<S, C, A> describe(Parameter<S, C, A> parameter, String name, String description) { return parameter(name, description, parameter.parser(), parameter.completer()); }
 
-		public static <S, C, A> Parser<Text, Context<S, C>, Bottom, A> parseParameter(Parameter<S, C, A> parameter) { return conclude(parameter.parser(), error("Could not parse command parameter " + escapeString(parameter.name()))); }
-		public static <S, C, A> Parser<Text, Context<S, C>, Bottom, List<Text>> analyzeParameter(Parameter<S, C, A> parameter) {
+		public static <S, C> Parser<Text, Context<S, C>, Bottom, List<Completion>> completer(BiFunction<Text, Context<S, C>, List<Text>> completer) {
 			return $do(
 			$(  getStream()																, input ->
 			$(  getUser()																, context ->
-			$(  simple(parameter.completer().apply(input, context))						, completions ->
-			$(  simple(completions.filter(completion -> input.isPrefixOf(completion)))	))))
+			$(  getLocation()															, location ->
+			$(  simple(list(completer.apply(input, context).stream()
+					.filter(input::isPrefixOf)
+					.distinct()
+					.map(completion -> completion(completion, location))
+					.toArray(Completion[]::new)
+				))																		))))
 			);
 		}
+		public static <S, C> Parser<Text, Context<S, C>, Bottom, List<Completion>> completer(Text... completions) {
+			return $do(
+			$(  getStream()																, input ->
+			$(  getUser()																, context ->
+			$(  getLocation()															, location ->
+			$(  simple(list(Arrays.stream(completions)
+					.filter(input::isPrefixOf)
+					.distinct()
+					.map(completion -> completion(completion, location))
+					.toArray(Completion[]::new)
+				))																		))))
+			);
+		}
+		public static <S, C> Parser<Text, Context<S, C>, Bottom, List<Completion>> incompletable() { return simple(nil()); }
+
+		public static <S, C, A> Parser<Text, Context<S, C>, Bottom, A> parseParameter(Parameter<S, C, A> parameter) { return conclude(parameter.parser(), error("Could not parse command parameter " + escapeString(parameter.name()))); }
+		public static <S, C, A> Parser<Text, Context<S, C>, Bottom, List<Completion>> analyzeParameter(Parameter<S, C, A> parameter) { return parameter.completer(); }
 
 		public <B> Parameter<S, C, B> map(Function<A, B> f) { return parameter(name, description, parser.map(f), completer); }
 	}
@@ -255,13 +312,13 @@ public abstract class Command<S, C, A> {
 				}
 			});
 		}
-		public static <S, C, T, A> Parser<Text, Context<S, C>, Bottom, Either<List<Text>, A>> analyzeBody(Body<S, C, T, A> body) {
+		public static <S, C, T, A> Parser<Text, Context<S, C>, Bottom, Either<List<Completion>, A>> analyzeBody(Body<S, C, T, A> body) {
 			return body.match(new Body.Match<>() {
-				@Override public Parser<Text, Context<S, C>, Bottom, Either<List<Text>, A>>
+				@Override public Parser<Text, Context<S, C>, Bottom, Either<List<Completion>, A>>
 				caseEvaluate(A a) {
 					return simple(right(a));
 				}
-				@Override public <X> Parser<Text, Context<S, C>, Bottom, Either<List<Text>, A>>
+				@Override public <X> Parser<Text, Context<S, C>, Bottom, Either<List<Completion>, A>>
 				caseDefine(Parameter<S, C, X> parameter, Id<Flow<T, X>, A> id) {
 					return choice($do(
 					$(  attempt(recur(() -> parseParameter(parameter)))	, x ->
@@ -277,7 +334,7 @@ public abstract class Command<S, C, A> {
 					$(  simple(left(completions))					))
 					));
 				}
-				@Override public <X> Parser<Text, Context<S, C>, Bottom, Either<List<Text>, A>>
+				@Override public <X> Parser<Text, Context<S, C>, Bottom, Either<List<Completion>, A>>
 				caseFlatMap(Body<S, C, T, X> fx, Function<X, Body<S, C, T, A>> f) {
 					return $do(
 					$(  recur(() -> analyzeBody(fx))					, result ->
@@ -341,9 +398,9 @@ public abstract class Command<S, C, A> {
 				}
 			});
 		}
-		public static <S, C, P, A> Parser<Text, Context<S, C>, Bottom, List<Text>> analyzeBinding(Binding<S, C, P, A> binding, P parameter) {
+		public static <S, C, P, A> Parser<Text, Context<S, C>, Bottom, List<Completion>> analyzeBinding(Binding<S, C, P, A> binding, P parameter) {
 			return binding.match(new Binding.Match<>() {
-				@Override public <T, D> Parser<Text, Context<S, C>, Bottom, List<Text>>
+				@Override public <T, D> Parser<Text, Context<S, C>, Bottom, List<Completion>>
 				caseEntry(BiFunction<Context<S, C>, P, Tuple<T, D>> delegator, Command<T, D, A> command) {
 					return localUser(recur(() -> analyzeCommand(command)), context -> fork(delegator.apply(context, parameter), context, parameter, binding.binding(), command));
 				}
@@ -375,7 +432,7 @@ public abstract class Command<S, C, A> {
 			$(  recur(() -> parseBinding(binding, parameter))	)))
 			);
 		}
-		public static <S, C, P, A> Parser<Text, Context<S, C>, Bottom, List<Text>> analyzeDispatcher(Dispatcher<S, C, P, A> dispatcher, P parameter) {
+		public static <S, C, P, A> Parser<Text, Context<S, C>, Bottom, List<Completion>> analyzeDispatcher(Dispatcher<S, C, P, A> dispatcher, P parameter) {
 			return choice($do(
 			$(  attempt(recur(() -> parseBindings(dispatcher)))				, binding ->
 			$(  choice($do(
@@ -386,12 +443,15 @@ public abstract class Command<S, C, A> {
 				$(  recur(() -> analyzeBinding(binding, parameter))	))
 				))															))
 			), $do(
-			$(  getStream()																			, input ->
-			$(  simple($do(
-				$(  dispatcher.bindings()											, binding ->
-				$(  singleton(text(binding.binding()))								, completion ->
-				$(  input.isPrefixOf(completion) ? singleton(completion) : nil()	)))
-				))																					))
+			$(  getStream()													, input ->
+			$(	getLocation()												, location ->
+			$(  simple(list(dispatcher.bindings().stream()
+					.map(binding -> text(binding.binding()))
+					.filter(input::isPrefixOf)
+					.distinct()
+					.map(completion -> completion(completion, location))
+					.toArray(Completion[]::new)
+				))															)))
 			));
 		}
 
@@ -543,9 +603,9 @@ public abstract class Command<S, C, A> {
 			}
 		});
 	}
-	public static <S, C, A> Parser<Text, Context<S, C>, Bottom, List<Text>> analyzeCommand(Command<S, C, A> command) {
+	public static <S, C, A> Parser<Text, Context<S, C>, Bottom, List<Completion>> analyzeCommand(Command<S, C, A> command) {
 		return command.match(new Command.Match<>() {
-			@Override public <P> Parser<Text, Context<S, C>, Bottom, List<Text>>
+			@Override public <P> Parser<Text, Context<S, C>, Bottom, List<Completion>>
 				caseNode(Definition<S, C, P> definition, Dispatcher<S, C, P, A> dispatcher, Behavior<S, C, P, A> behavior) {
 				return $do(
 				$(  recur(() -> analyzeBody($do(
@@ -563,8 +623,8 @@ public abstract class Command<S, C, A> {
 
 	public static <S, C, A> Result<Text, Context<S, C>, Bottom, Action<A>> runCommand(Command<S, C, A> command, Text input, Context<S, C> context) { return runParser(parseCommand(command), input, context); }
 	public static <S, C, A> Result<Text, Context<S, C>, Bottom, Action<A>> runCommand(Command<S, C, A> command, Text input, S source, C context) { return runCommand(command, input, base(source, context, command)); }
-	public static <S, C, A> Result<Text, Context<S, C>, Bottom, List<Text>> completeCommand(Command<S, C, A> command, Text input, Context<S, C> context) { return runParser(analyzeCommand(command), input, context); }
-	public static <S, C, A> Result<Text, Context<S, C>, Bottom, List<Text>> completeCommand(Command<S, C, A> command, Text input, S source, C context) { return completeCommand(command, input, base(source, context, command)); }
+	public static <S, C, A> Result<Text, Context<S, C>, Bottom, List<Completion>> completeCommand(Command<S, C, A> command, Text input, Context<S, C> context) { return runParser(analyzeCommand(command), input, context); }
+	public static <S, C, A> Result<Text, Context<S, C>, Bottom, List<Completion>> completeCommand(Command<S, C, A> command, Text input, S source, C context) { return completeCommand(command, input, base(source, context, command)); }
 
 	public abstract <B> Command<S, C, B> map(Function<A, B> f);
 }

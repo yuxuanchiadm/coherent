@@ -4,6 +4,8 @@ import org.coherent.core.Command;
 import static org.coherent.core.Command.*;
 import org.coherent.core.Command.Context;
 import static org.coherent.core.Command.Context.*;
+import org.coherent.core.Command.Completion;
+import static org.coherent.core.Command.Completion.*;
 import org.coherent.core.Command.Parameter;
 import static org.coherent.core.Command.Parameter.*;
 import org.coherent.core.Command.Flow;
@@ -24,6 +26,8 @@ import static org.coherent.core.Command.Flow.Notation.*;
 
 import org.jparsec.core.Parser;
 import static org.jparsec.core.Parser.*;
+import org.jparsec.core.Parser.Location;
+import static org.jparsec.core.Parser.Location.*;
 import org.jparsec.core.Text;
 import static org.jparsec.core.Text.*;
 import org.jparsec.core.parser.Read;
@@ -65,40 +69,33 @@ public class CommandTest {
 		Result<Text, Context<Unit, Unit>, Bottom, Action<Unit>> result3 = runCommand(rootCommand, text("test foo"), unit(), unit());
 		assertTrue(result3.isFail());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result4 = completeCommand(rootCommand, text(""), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result4 = completeCommand(rootCommand, text(""), unit(), unit());
 		assertTrue(result4.isSuccess());
-		assertEquals(list(text("test")), result4.coerceResult());
-		assertEquals(0, result4.getEnvironment().location().offset());
+		assertEquals(list(completion(text("test"), location())), result4.coerceResult());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result5 = completeCommand(rootCommand, text("te"), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result5 = completeCommand(rootCommand, text("te"), unit(), unit());
 		assertTrue(result5.isSuccess());
-		assertEquals(list(text("test")), result5.coerceResult());
-		assertEquals(0, result5.getEnvironment().location().offset());
+		assertEquals(list(completion(text("test"), location())), result5.coerceResult());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result6 = completeCommand(rootCommand, text("test"), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result6 = completeCommand(rootCommand, text("test"), unit(), unit());
 		assertTrue(result6.isSuccess());
 		assertEquals(list(), result6.coerceResult());
-		assertEquals(4, result6.getEnvironment().location().offset());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result7 = completeCommand(rootCommand, text("test "), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result7 = completeCommand(rootCommand, text("test "), unit(), unit());
 		assertTrue(result7.isSuccess());
 		assertEquals(list(), result7.coerceResult());
-		assertEquals(5, result7.getEnvironment().location().offset());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result8 = completeCommand(rootCommand, text("test foo"), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result8 = completeCommand(rootCommand, text("test foo"), unit(), unit());
 		assertTrue(result8.isSuccess());
 		assertEquals(list(), result8.coerceResult());
-		assertEquals(5, result8.getEnvironment().location().offset());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result9 = completeCommand(rootCommand, text("test foo "), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result9 = completeCommand(rootCommand, text("test foo "), unit(), unit());
 		assertTrue(result9.isSuccess());
 		assertEquals(list(), result9.coerceResult());
-		assertEquals(5, result9.getEnvironment().location().offset());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result10 = completeCommand(rootCommand, text("test foo bar"), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result10 = completeCommand(rootCommand, text("test foo bar"), unit(), unit());
 		assertTrue(result10.isSuccess());
 		assertEquals(list(), result10.coerceResult());
-		assertEquals(5, result10.getEnvironment().location().offset());
 	}
 	@Test public void testParameter() {
 		Command<Unit, Unit, Tuple<String, Integer>> testCommand = node(
@@ -107,13 +104,13 @@ public class CommandTest {
 			new Object() {
 				public <T> Body<Unit, Unit, T, Flow<T, Tuple<String, Integer>>> testBody() {
 				return $do(
-					$(  define(parameter("test1", "Test string parameter", readString(), (input, context) -> singleton(text("\"\""))))  , p1 ->
-					$(  define(parameter("test2", "Test integer parameter", readInteger(), (input, context) -> singleton(text("0"))))   , p2 ->
+					$(  define(parameter("test1", "Test string parameter", readString(), completer(text("\""))))	, p1 ->
+					$(  define(parameter("test2", "Test integer parameter", readInteger(), completer(text("0"))))	, p2 ->
 					$(  evaluate($do(
 						$(  p1						, v1 ->
 						$(  p2						, v2 ->
 						$(  value(tuple(v1, v2))	)))
-						))																											  )))
+						))																															)))
 					);
 				}
 			}::testBody,
@@ -144,33 +141,33 @@ public class CommandTest {
 		Result<Text, Context<Unit, Unit>, Bottom, Action<Tuple<String, Integer>>> result6 = runCommand(rootCommand, text("test \"foo\" 12450 bar"), unit(), unit());
 		assertTrue(result6.isFail());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result7 = completeCommand(rootCommand, text("test "), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result7 = completeCommand(rootCommand, text("test "), unit(), unit());
 		assertTrue(result7.isSuccess());
-		assertEquals(list(text("\"\"")), result7.coerceResult());
+		assertEquals(list(completion(text("\""), location().advanceString("test "))), result7.coerceResult());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result8 = completeCommand(rootCommand, text("test \"foo"), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result8 = completeCommand(rootCommand, text("test \"foo"), unit(), unit());
 		assertTrue(result8.isSuccess());
 		assertEquals(list(), result8.coerceResult());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result9 = completeCommand(rootCommand, text("test \"foo\""), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result9 = completeCommand(rootCommand, text("test \"foo\""), unit(), unit());
 		assertTrue(result9.isSuccess());
 		assertEquals(list(), result9.coerceResult());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result10 = completeCommand(rootCommand, text("test \"foo\" "), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result10 = completeCommand(rootCommand, text("test \"foo\" "), unit(), unit());
 		assertTrue(result10.isSuccess());
-		assertEquals(list(text("0")), result10.coerceResult());
+		assertEquals(list(completion(text("0"), location().advanceString("test \"foo\" "))), result10.coerceResult());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result11 = completeCommand(rootCommand, text("test \"foo\" 12450"), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result11 = completeCommand(rootCommand, text("test \"foo\" 12450"), unit(), unit());
 		assertTrue(result11.isSuccess());
 		assertEquals(list(), result11.coerceResult());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result12 = completeCommand(rootCommand, text("test\"foo\" 12450"), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result12 = completeCommand(rootCommand, text("test\"foo\" 12450"), unit(), unit());
 		assertTrue(result12.isFail());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result13 = completeCommand(rootCommand, text("test \"foo\"12450"), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result13 = completeCommand(rootCommand, text("test \"foo\"12450"), unit(), unit());
 		assertTrue(result13.isFail());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result14 = completeCommand(rootCommand, text("test \"foo\" 12450 bar"), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result14 = completeCommand(rootCommand, text("test \"foo\" 12450 bar"), unit(), unit());
 		assertTrue(result14.isSuccess());
 		assertEquals(list(), result14.coerceResult());
 	}
@@ -222,31 +219,31 @@ public class CommandTest {
 		Result<Text, Context<Unit, Unit>, Bottom, Action<Unit>> result4 = runCommand(rootCommand, text("testhelp"), unit(), unit());
 		assertTrue(result4.isFail());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result5 = completeCommand(rootCommand, text("test "), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result5 = completeCommand(rootCommand, text("test "), unit(), unit());
 		assertTrue(result5.isSuccess());
-		assertEquals(list(text("help"), text("debug")), result5.coerceResult());
+		assertEquals(list(completion(text("help"), location().advanceString("test ")), completion(text("debug"), location().advanceString("test "))), result5.coerceResult());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result6 = completeCommand(rootCommand, text("test he"), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result6 = completeCommand(rootCommand, text("test he"), unit(), unit());
 		assertTrue(result6.isSuccess());
-		assertEquals(list(text("help")), result6.coerceResult());
+		assertEquals(list(completion(text("help"), location().advanceString("test "))), result6.coerceResult());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result7 = completeCommand(rootCommand, text("test help"), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result7 = completeCommand(rootCommand, text("test help"), unit(), unit());
 		assertTrue(result7.isSuccess());
 		assertEquals(list(), result7.coerceResult());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result8 = completeCommand(rootCommand, text("test de"), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result8 = completeCommand(rootCommand, text("test de"), unit(), unit());
 		assertTrue(result8.isSuccess());
-		assertEquals(list(text("debug")), result8.coerceResult());
+		assertEquals(list(completion(text("debug"), location().advanceString("test "))), result8.coerceResult());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result9 = completeCommand(rootCommand, text("test debug"), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result9 = completeCommand(rootCommand, text("test debug"), unit(), unit());
 		assertTrue(result9.isSuccess());
 		assertEquals(list(), result9.coerceResult());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result10 = completeCommand(rootCommand, text("test foo"), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result10 = completeCommand(rootCommand, text("test foo"), unit(), unit());
 		assertTrue(result10.isSuccess());
 		assertEquals(list(), result10.coerceResult());
 
-		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result11 = completeCommand(rootCommand, text("testhelp"), unit(), unit());
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result11 = completeCommand(rootCommand, text("testhelp"), unit(), unit());
 		assertTrue(result11.isFail());
 	}
 	@Test public void testRejected() {

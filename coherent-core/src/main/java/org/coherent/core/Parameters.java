@@ -2,6 +2,8 @@ package org.coherent.core;
 
 import java.util.Arrays;
 
+import org.coherent.core.Command.Completion;
+import static org.coherent.core.Command.Completion.*;
 import org.coherent.core.Command.Parameter;
 import static org.coherent.core.Command.Parameter.*;
 
@@ -13,11 +15,17 @@ import org.jparsec.core.parser.Char;
 import static org.jparsec.core.parser.Char.*;
 import org.jparsec.core.parser.Read;
 import static org.jparsec.core.parser.Read.*;
+import org.jparsec.core.parser.Combinator;
+import static org.jparsec.core.parser.Combinator.*;
+
+import static org.jparsec.core.Parser.Notation.*;
 
 import org.monadium.core.data.List;
 import static org.monadium.core.data.List.*;
 import org.monadium.core.data.Tuple;
 import static org.monadium.core.data.Tuple.*;
+
+import static org.monadium.core.Notation.*;
 
 public final class Parameters {
 	Parameters() {}
@@ -27,12 +35,15 @@ public final class Parameters {
 			name,
 			description,
 			Arrays.stream(parameters)
-				.reduce(ignore(), (parser, parameter) -> parser.plus(parameter.parser()), Parser::plus),
-			(input, context) -> list(Arrays.stream(parameters)
-				.flatMap(parameter -> parameter.completer().apply(input, context).stream())
-				.distinct()
-				.toArray(Text[]::new)
-			)
+				.reduce(ignore(), (parser, parameter) -> parser.plus(attempt(parameter.parser())), Parser::plus),
+			Arrays.stream(parameters)
+				.map(Parameter::completer)
+				.reduce(simple(nil()), (parser1, parser2) -> $do(
+				$(	option(attempt(lookahead(parser1)), nil())				, completions1 ->
+				$(	option(attempt(lookahead(parser2)), nil())				, completions2 ->
+				$(	simple(completions1.concat(completions2))	)))
+				))
+				.map(completions -> list(completions.stream().distinct().toArray(Completion[]::new)))
 		);
 	}
 
@@ -42,12 +53,7 @@ public final class Parameters {
 			description,
 			Arrays.stream(options)
 				.reduce(ignore(), (parser, option) -> parser.plus(replace(string(option.first()), option.second())), Parser::plus),
-			(input, context) -> list(Arrays.stream(options)
-				.map(option -> text(option.first()))
-				.filter(completion -> input.isPrefixOf(completion))
-				.distinct()
-				.toArray(Text[]::new)
-			)
+			completer(Arrays.stream(options).map(option -> text(option.first())).toArray(Text[]::new))
 		);
 	}
 
@@ -57,12 +63,7 @@ public final class Parameters {
 			description,
 			Arrays.stream(literals)
 				.reduce(ignore(), (parser, literal) -> parser.plus(string(literal)), Parser::plus),
-			(input, context) -> list(Arrays.stream(literals)
-				.map(literal -> text(literal))
-				.filter(completion -> input.isPrefixOf(completion))
-				.distinct()
-				.toArray(Text[]::new)
-			)
+			completer(Arrays.stream(literals).map(literal -> text(literal)).toArray(Text[]::new))
 		);
 	}
 
@@ -71,7 +72,7 @@ public final class Parameters {
 			name,
 			description,
 			stringDissatisfy(Character::isWhitespace),
-			(input, context) -> nil()
+			incompletable()
 		);
 	}
 
@@ -80,7 +81,7 @@ public final class Parameters {
 			name,
 			description,
 			readBoolean(),
-			(input, context) -> list(text("false"), text("true")).filter(completion -> input.isPrefixOf(completion))
+			completer(text("false"), text("true"))
 		);
 	}
 
@@ -89,7 +90,7 @@ public final class Parameters {
 			name,
 			description,
 			readByte(),
-			(input, context) -> nil()
+			incompletable()
 		);
 	}
 
@@ -98,7 +99,7 @@ public final class Parameters {
 			name,
 			description,
 			readShort(),
-			(input, context) -> nil()
+			incompletable()
 		);
 	}
 
@@ -107,7 +108,7 @@ public final class Parameters {
 			name,
 			description,
 			readInteger(),
-			(input, context) -> nil()
+			incompletable()
 		);
 	}
 
@@ -116,7 +117,7 @@ public final class Parameters {
 			name,
 			description,
 			readLong(),
-			(input, context) -> nil()
+			incompletable()
 		);
 	}
 
@@ -125,7 +126,7 @@ public final class Parameters {
 			name,
 			description,
 			readFloat(),
-			(input, context) -> nil()
+			incompletable()
 		);
 	}
 
@@ -134,7 +135,7 @@ public final class Parameters {
 			name,
 			description,
 			readDouble(),
-			(input, context) -> nil()
+			incompletable()
 		);
 	}
 
@@ -143,7 +144,7 @@ public final class Parameters {
 			name,
 			description,
 			readCharacter(),
-			(input, context) -> input.isPrefixOf(text("'")) ? singleton(text("'")) : nil()
+			completer(text("'"))
 		);
 	}
 
@@ -152,7 +153,7 @@ public final class Parameters {
 			name,
 			description,
 			readString(),
-			(input, context) -> input.isPrefixOf(text("\"")) ? singleton(text("\"")) : nil()
+			completer(text("\""))
 		);
 	}
 }
