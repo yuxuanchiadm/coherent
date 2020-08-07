@@ -32,6 +32,8 @@ import org.jparsec.core.Text;
 import static org.jparsec.core.Text.*;
 import org.jparsec.core.parser.Read;
 import static org.jparsec.core.parser.Read.*;
+import org.jparsec.core.parser.Combinator;
+import static org.jparsec.core.parser.Combinator.*;
 
 import org.monadium.core.data.Bottom;
 import static org.monadium.core.data.Bottom.*;
@@ -103,7 +105,7 @@ public class CommandTest {
 			"Test command",
 			new Object() {
 				public <T> Body<Unit, Unit, T, Flow<T, Tuple<String, Integer>>> testBody() {
-				return $do(
+					return $do(
 					$(  define(parameter("test1", "Test string parameter", readString(), completer(text("\""))))	, p1 ->
 					$(  define(parameter("test2", "Test integer parameter", readInteger(), completer(text("0"))))	, p2 ->
 					$(  evaluate($do(
@@ -259,5 +261,26 @@ public class CommandTest {
 		Result<Text, Context<Unit, Unit>, Bottom, Action<Unit>> result1 = runCommand(rootCommand, text("test"), unit(), unit());
 		assertTrue(result1.isSuccess());
 		assertTrue(result1.coerceResult().isRejected());
+	}
+	@Test public void testSuggest() {
+		Command<Unit, Unit, Integer> testCommand = node(
+			"test",
+			"Test command",
+			new Object() {
+				public <T> Body<Unit, Unit, T, Flow<T, Integer>> testBody() {
+					return define(suggest(
+						parameter("test1", "Test integer parameter", choice(readInteger()), completer(text("0"))),
+						completer(text("12450"))
+					));
+				}
+			}::testBody,
+			dispatcher(),
+			handler((context, parameter) -> handled(() -> parameter))
+		);
+		Command<Unit, Unit, Integer> rootCommand = root(testCommand);
+
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result1 = completeCommand(rootCommand, text("test "), unit(), unit());
+		assertTrue(result1.isSuccess());
+		assertEquals(list(completion(text("0"), location().advanceString("test ")), completion(text("12450"), location().advanceString("test "))), result1.coerceResult());
 	}
 }

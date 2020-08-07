@@ -5,6 +5,7 @@ import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import org.coherent.core.Command.Context;
 import static org.coherent.core.Command.Context.*;
@@ -148,6 +149,16 @@ public abstract class Command<S, C, A> {
 		public Parser<Text, Context<S, C>, Bottom, List<Completion>> completer() { return completer; }
 
 		public static <S, C, A, B> Parameter<S, C, B> specialize(Parameter<S, C, A> parameter, Function<A, B> f) { return parameter.map(f); }
+		public static <S, C, A> Parameter<S, C, A> suggest(Parameter<S, C, A> parameter, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) {
+			return parameter(parameter.name(), parameter.description(), parameter.parser(), $do(
+			$(	option(attempt(lookahead(parameter.completer())), nil())				, completions1 ->
+			$(	option(attempt(lookahead(completer)), nil())							, completions2 ->
+			$(	simple(list(Stream.concat(completions1.stream(), completions2.stream())
+					.distinct()
+					.toArray(Completion[]::new)
+				 ))																		)))
+		   	));
+		}
 		public static <S, C, A> Parameter<S, C, A> describe(Parameter<S, C, A> parameter, String name, String description) { return parameter(name, description, parameter.parser(), parameter.completer()); }
 
 		public static <S, C> Parser<Text, Context<S, C>, Bottom, List<Completion>> completer(BiFunction<Text, Context<S, C>, List<Text>> completer) {
