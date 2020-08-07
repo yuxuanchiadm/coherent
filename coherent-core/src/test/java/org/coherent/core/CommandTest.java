@@ -68,44 +68,37 @@ public class CommandTest {
 		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result4 = completeCommand(rootCommand, text(""), unit(), unit());
 		assertTrue(result4.isSuccess());
 		assertEquals(list(text("test")), result4.coerceResult());
-		assertEquals(1, result4.getEnvironment().location().line());
-		assertEquals(1, result4.getEnvironment().location().column());
+		assertEquals(0, result4.getEnvironment().location().offset());
 
 		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result5 = completeCommand(rootCommand, text("te"), unit(), unit());
 		assertTrue(result5.isSuccess());
 		assertEquals(list(text("test")), result5.coerceResult());
-		assertEquals(1, result5.getEnvironment().location().line());
-		assertEquals(1, result5.getEnvironment().location().column());
+		assertEquals(0, result5.getEnvironment().location().offset());
 
 		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result6 = completeCommand(rootCommand, text("test"), unit(), unit());
 		assertTrue(result6.isSuccess());
 		assertEquals(list(), result6.coerceResult());
-		assertEquals(1, result6.getEnvironment().location().line());
-		assertEquals(5, result6.getEnvironment().location().column());
+		assertEquals(4, result6.getEnvironment().location().offset());
 
 		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result7 = completeCommand(rootCommand, text("test "), unit(), unit());
 		assertTrue(result7.isSuccess());
 		assertEquals(list(), result7.coerceResult());
-		assertEquals(1, result7.getEnvironment().location().line());
-		assertEquals(6, result7.getEnvironment().location().column());
+		assertEquals(5, result7.getEnvironment().location().offset());
 
 		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result8 = completeCommand(rootCommand, text("test foo"), unit(), unit());
 		assertTrue(result8.isSuccess());
 		assertEquals(list(), result8.coerceResult());
-		assertEquals(1, result8.getEnvironment().location().line());
-		assertEquals(6, result8.getEnvironment().location().column());
+		assertEquals(5, result8.getEnvironment().location().offset());
 
 		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result9 = completeCommand(rootCommand, text("test foo "), unit(), unit());
 		assertTrue(result9.isSuccess());
 		assertEquals(list(), result9.coerceResult());
-		assertEquals(1, result9.getEnvironment().location().line());
-		assertEquals(6, result9.getEnvironment().location().column());
+		assertEquals(5, result9.getEnvironment().location().offset());
 
 		Result<Text, Context<Unit, Unit>, Bottom, List<Text>> result10 = completeCommand(rootCommand, text("test foo bar"), unit(), unit());
 		assertTrue(result10.isSuccess());
 		assertEquals(list(), result10.coerceResult());
-		assertEquals(1, result10.getEnvironment().location().line());
-		assertEquals(6, result10.getEnvironment().location().column());
+		assertEquals(5, result10.getEnvironment().location().offset());
 	}
 	@Test public void testParameter() {
 		Command<Unit, Unit, Tuple<String, Integer>> testCommand = node(
