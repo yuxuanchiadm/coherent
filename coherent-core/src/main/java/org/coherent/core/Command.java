@@ -148,7 +148,9 @@ public abstract class Command<S, C, A> {
 		public Parser<Text, Context<S, C>, Bottom, A> parser() { return parser; }
 		public Parser<Text, Context<S, C>, Bottom, List<Completion>> completer() { return completer; }
 
+		public static <S, C, A> Parameter<S, C, A> describe(Parameter<S, C, A> parameter, String name, String description) { return parameter(name, description, parameter.parser(), parameter.completer()); }
 		public static <S, C, A, B> Parameter<S, C, B> specialize(Parameter<S, C, A> parameter, Function<A, B> f) { return parameter.map(f); }
+ 		public static <S, C, A, B> Parameter<S, C, B> extend(Parameter<S, C, A> parameter, Function<A, Parser<Text, Context<S, C>, Bottom, B>> f) { return parameter(parameter.name(), parameter.description(), parameter.parser().flatMap(f), parameter.completer()); }
 		public static <S, C, A> Parameter<S, C, A> suggest(Parameter<S, C, A> parameter, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) {
 			return parameter(parameter.name(), parameter.description(), parameter.parser(), $do(
 			$(	option(attempt(lookahead(parameter.completer())), nil())				, completions1 ->
@@ -159,7 +161,6 @@ public abstract class Command<S, C, A> {
 				 ))																		)))
 		   	));
 		}
-		public static <S, C, A> Parameter<S, C, A> describe(Parameter<S, C, A> parameter, String name, String description) { return parameter(name, description, parameter.parser(), parameter.completer()); }
 
 		public static <S, C> Parser<Text, Context<S, C>, Bottom, List<Completion>> completer(BiFunction<Text, Context<S, C>, List<Text>> completer) {
 			return $do(

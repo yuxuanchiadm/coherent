@@ -30,10 +30,14 @@ import org.jparsec.core.Parser.Location;
 import static org.jparsec.core.Parser.Location.*;
 import org.jparsec.core.Text;
 import static org.jparsec.core.Text.*;
+import org.jparsec.core.parser.Char;
+import static org.jparsec.core.parser.Char.*;
 import org.jparsec.core.parser.Read;
 import static org.jparsec.core.parser.Read.*;
 import org.jparsec.core.parser.Combinator;
 import static org.jparsec.core.parser.Combinator.*;
+
+import static org.jparsec.core.Parser.Notation.*;
 
 import org.monadium.core.data.Bottom;
 import static org.monadium.core.data.Bottom.*;
@@ -269,7 +273,7 @@ public class CommandTest {
 			new Object() {
 				public <T> Body<Unit, Unit, T, Flow<T, Integer>> testBody() {
 					return define(suggest(
-						parameter("test1", "Test integer parameter", choice(readInteger()), completer(text("0"))),
+						parameter("test1", "Test integer parameter", readInteger(), completer(text("0"))),
 						completer(text("12450"))
 					));
 				}
@@ -282,5 +286,38 @@ public class CommandTest {
 		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result1 = completeCommand(rootCommand, text("test "), unit(), unit());
 		assertTrue(result1.isSuccess());
 		assertEquals(list(completion(text("0"), location().advanceString("test ")), completion(text("12450"), location().advanceString("test "))), result1.coerceResult());
+	}
+	@Test public void testExtend() {
+		Command<Unit, Unit, Integer> testCommand = node(
+			"test",
+			"Test command",
+			new Object() {
+				public <T> Body<Unit, Unit, T, Flow<T, Integer>> testBody() {
+					return define(extend(
+						parameter("test1", "Test integer parameter", readInteger(), completer(text("0"))),
+						i -> $do(
+						$(	character('!')	, () ->
+						$(	simple(i)		))
+						)
+					));
+				}
+			}::testBody,
+			dispatcher(),
+			handler((context, parameter) -> handled(() -> parameter))
+		);
+		Command<Unit, Unit, Integer> rootCommand = root(testCommand);
+
+		Result<Text, Context<Unit, Unit>, Bottom, Action<Integer>> result1 = runCommand(rootCommand, text("test 0"), unit(), unit());
+		assertTrue(result1.isFail());
+
+		Result<Text, Context<Unit, Unit>, Bottom, Action<Integer>> result2 = runCommand(rootCommand, text("test 0!"), unit(), unit());
+		assertTrue(result2.isSuccess());
+		assertTrue(result2.coerceResult().isHandled());
+		assertEquals(0, result2.coerceResult().coerceHandled().get());
+
+		Result<Text, Context<Unit, Unit>, Bottom, Action<Integer>> result3 = runCommand(rootCommand, text("test 12450!"), unit(), unit());
+		assertTrue(result3.isSuccess());
+		assertTrue(result3.coerceResult().isHandled());
+		assertEquals(12450, result3.coerceResult().coerceHandled().get());
 	}
 }
