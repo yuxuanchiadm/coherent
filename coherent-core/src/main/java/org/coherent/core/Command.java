@@ -130,13 +130,13 @@ public abstract class Command<S, C, A> {
 				name,
 				description,
 				recur(() -> parseBody($do(
-				$(  definition.<Bottom> body()	, flow ->
-				$(  evaluate(evalFlow(flow))	))
+				$(	definition.<Bottom> body()	, flow ->
+				$(	evaluate(evalFlow(flow))	))
 				))),
 				$do(
 				$(	recur(() -> analyzeBody($do(
-					$(  definition.<Bottom> body()	, flow ->
-					$(  evaluate(evalFlow(flow))	))
+					$(	definition.<Bottom> body()	, flow ->
+					$(	evaluate(evalFlow(flow))	))
 					)))											, result ->
 				$(	simple(result.fromLeft(nil()))				))
 				)
@@ -150,7 +150,7 @@ public abstract class Command<S, C, A> {
 
 		public static <S, C, A> Parameter<S, C, A> describe(Parameter<S, C, A> parameter, String name, String description) { return parameter(name, description, parameter.parser(), parameter.completer()); }
 		public static <S, C, A, B> Parameter<S, C, B> specialize(Parameter<S, C, A> parameter, Function<A, B> f) { return parameter.map(f); }
- 		public static <S, C, A, B> Parameter<S, C, B> extend(Parameter<S, C, A> parameter, Function<A, Parser<Text, Context<S, C>, Bottom, B>> f) { return parameter(parameter.name(), parameter.description(), parameter.parser().flatMap(f), parameter.completer()); }
+		public static <S, C, A, B> Parameter<S, C, B> extend(Parameter<S, C, A> parameter, Function<A, Parser<Text, Context<S, C>, Bottom, B>> f) { return parameter(parameter.name(), parameter.description(), parameter.parser().flatMap(f), parameter.completer()); }
 		public static <S, C, A> Parameter<S, C, A> suggest(Parameter<S, C, A> parameter, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) {
 			return parameter(parameter.name(), parameter.description(), parameter.parser(), $do(
 			$(	option(attempt(lookahead(parameter.completer())), nil())				, completions1 ->
@@ -158,16 +158,16 @@ public abstract class Command<S, C, A> {
 			$(	simple(list(Stream.concat(completions1.stream(), completions2.stream())
 					.distinct()
 					.toArray(Completion[]::new)
-				 ))																		)))
-		   	));
+				))																		)))
+			));
 		}
 
 		public static <S, C> Parser<Text, Context<S, C>, Bottom, List<Completion>> completer(BiFunction<Text, Context<S, C>, List<Text>> completer) {
 			return $do(
-			$(  getStream()																, input ->
-			$(  getUser()																, context ->
-			$(  getLocation()															, location ->
-			$(  simple(list(completer.apply(input, context).stream()
+			$(	getStream()																, input ->
+			$(	getUser()																, context ->
+			$(	getLocation()															, location ->
+			$(	simple(list(completer.apply(input, context).stream()
 					.filter(input::isPrefixOf)
 					.distinct()
 					.map(completion -> completion(completion, location))
@@ -177,10 +177,10 @@ public abstract class Command<S, C, A> {
 		}
 		public static <S, C> Parser<Text, Context<S, C>, Bottom, List<Completion>> completer(Text... completions) {
 			return $do(
-			$(  getStream()																, input ->
-			$(  getUser()																, context ->
-			$(  getLocation()															, location ->
-			$(  simple(list(Arrays.stream(completions)
+			$(	getStream()																, input ->
+			$(	getUser()																, context ->
+			$(	getLocation()															, location ->
+			$(	simple(list(Arrays.stream(completions)
 					.filter(input::isPrefixOf)
 					.distinct()
 					.map(completion -> completion(completion, location))
@@ -310,16 +310,16 @@ public abstract class Command<S, C, A> {
 				@Override public <X> Parser<Text, Context<S, C>, Bottom, A>
 				caseDefine(Parameter<S, C, X> parameter, Id<Flow<T, X>, A> id) {
 					return $do(
-					$(  recur(() -> parseParameter(parameter))		, x ->
-					$(  choice(suppress(eof()), skipMany(space()))	, () ->
-					$(  simple(id.coerce(value(x)))					)))
+					$(	recur(() -> parseParameter(parameter))		, x ->
+					$(	choice(suppress(eof()), skipMany(space()))	, () ->
+					$(	simple(id.coerce(value(x)))					)))
 					);
 				}
 				@Override public <X> Parser<Text, Context<S, C>, Bottom, A>
 				caseFlatMap(Body<S, C, T, X> fx, Function<X, Body<S, C, T, A>> f) {
 					return $do(
-					$(  recur(() -> parseBody(fx))			, x ->
-					$(  recur(() -> parseBody(f.apply(x)))	))
+					$(	recur(() -> parseBody(fx))			, x ->
+					$(	recur(() -> parseBody(f.apply(x)))	))
 					);
 				}
 			});
@@ -333,27 +333,27 @@ public abstract class Command<S, C, A> {
 				@Override public <X> Parser<Text, Context<S, C>, Bottom, Either<List<Completion>, A>>
 				caseDefine(Parameter<S, C, X> parameter, Id<Flow<T, X>, A> id) {
 					return choice($do(
-					$(  attempt(recur(() -> parseParameter(parameter)))	, x ->
-					$(  choice($do(
-						$(  suppress(eof())		, () ->
-						$(  simple(left(nil()))	))
+					$(	attempt(recur(() -> parseParameter(parameter)))	, x ->
+					$(	choice($do(
+						$(	suppress(eof())		, () ->
+						$(	simple(left(nil()))	))
 						), $do(
-						$(  skipMany(space())					, () ->
-						$(  simple(right(id.coerce(value(x))))	))
+						$(	skipMany(space())					, () ->
+						$(	simple(right(id.coerce(value(x))))	))
 						))												))
 					), $do(
-					$(  recur(() -> analyzeParameter(parameter))	, completions ->
-					$(  simple(left(completions))					))
+					$(	recur(() -> analyzeParameter(parameter))	, completions ->
+					$(	simple(left(completions))					))
 					));
 				}
 				@Override public <X> Parser<Text, Context<S, C>, Bottom, Either<List<Completion>, A>>
 				caseFlatMap(Body<S, C, T, X> fx, Function<X, Body<S, C, T, A>> f) {
 					return $do(
-					$(  recur(() -> analyzeBody(fx))					, result ->
-					$(  result.caseof(
+					$(	recur(() -> analyzeBody(fx))					, result ->
+					$(	result.caseof(
 							completions -> simple(left(completions)),
 							x -> recur(() -> analyzeBody(f.apply(x)))
-						)											   ))
+						)												))
 					);
 				}
 			});
@@ -439,25 +439,25 @@ public abstract class Command<S, C, A> {
 		}
 		public static <S, C, P, A> Parser<Text, Context<S, C>, Bottom, Action<A>> parseDispatcher(Dispatcher<S, C, P, A> dispatcher, P parameter) {
 			return $do(
-			$(  recur(() -> parseBindings(dispatcher))			, binding ->
-			$(  choice(suppress(eof()), skipMany(space()))		, ()  ->
-			$(  recur(() -> parseBinding(binding, parameter))	)))
+			$(	recur(() -> parseBindings(dispatcher))			, binding ->
+			$(	choice(suppress(eof()), skipMany(space()))		, () ->
+			$(	recur(() -> parseBinding(binding, parameter))	)))
 			);
 		}
 		public static <S, C, P, A> Parser<Text, Context<S, C>, Bottom, List<Completion>> analyzeDispatcher(Dispatcher<S, C, P, A> dispatcher, P parameter) {
 			return choice($do(
-			$(  attempt(recur(() -> parseBindings(dispatcher)))				, binding ->
-			$(  choice($do(
-				$(  suppress(eof())	, () ->
-				$(  simple(nil())	))
+			$(	attempt(recur(() -> parseBindings(dispatcher)))				, binding ->
+			$(	choice($do(
+				$(	suppress(eof())	, () ->
+				$(	simple(nil())	))
 				), $do(
-				$(  skipMany(space())								, () ->
-				$(  recur(() -> analyzeBinding(binding, parameter))	))
+				$(	skipMany(space())								, () ->
+				$(	recur(() -> analyzeBinding(binding, parameter))	))
 				))															))
 			), $do(
-			$(  getStream()													, input ->
+			$(	getStream()													, input ->
 			$(	getLocation()												, location ->
-			$(  simple(list(dispatcher.bindings().stream()
+			$(	simple(list(dispatcher.bindings().stream()
 					.map(binding -> text(binding.binding()))
 					.filter(input::isPrefixOf)
 					.distinct()
@@ -599,15 +599,15 @@ public abstract class Command<S, C, A> {
 			@Override public <P> Parser<Text, Context<S, C>, Bottom, Action<A>>
 				caseNode(Definition<S, C, P> definition, Dispatcher<S, C, P, A> dispatcher, Behavior<S, C, P, A> behavior) {
 				return $do(
-				$(  recur(() -> parseBody($do(
-					$(  definition.<Bottom> body()	, flow ->
-					$(  evaluate(evalFlow(flow))	))
+				$(	recur(() -> parseBody($do(
+					$(	definition.<Bottom> body()	, flow ->
+					$(	evaluate(evalFlow(flow))	))
 					)))																	, parameter ->
-				$(  behavior.caseof(
+				$(	behavior.caseof(
 						handler -> choice($do(
-						$(  suppress(eof())								, () ->
-						$(  getUser()									, context ->
-						$(  simple(handler.apply(context, parameter))	)))
+						$(	suppress(eof())								, () ->
+						$(	getUser()									, context ->
+						$(	simple(handler.apply(context, parameter))	)))
 						), recur(() -> parseDispatcher(dispatcher, parameter))),
 						() -> recur(() -> parseDispatcher(dispatcher, parameter))
 					)																	))
@@ -620,11 +620,11 @@ public abstract class Command<S, C, A> {
 			@Override public <P> Parser<Text, Context<S, C>, Bottom, List<Completion>>
 				caseNode(Definition<S, C, P> definition, Dispatcher<S, C, P, A> dispatcher, Behavior<S, C, P, A> behavior) {
 				return $do(
-				$(  recur(() -> analyzeBody($do(
-					$(  definition.<Bottom> body()	, flow ->
-					$(  evaluate(evalFlow(flow))	))
+				$(	recur(() -> analyzeBody($do(
+					$(	definition.<Bottom> body()	, flow ->
+					$(	evaluate(evalFlow(flow))	))
 					)))																		, result ->
-				$(  result.caseof(
+				$(	result.caseof(
 						completions -> simple(completions),
 						parameter -> recur(() -> analyzeDispatcher(dispatcher, parameter))
 					)																		))

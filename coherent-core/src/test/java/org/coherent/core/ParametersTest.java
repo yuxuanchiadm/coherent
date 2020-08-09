@@ -104,7 +104,7 @@ public final class ParametersTest {
 					return define(parameter("test", "Test nested parameter", new Object() {
 						public <N> Body<Unit, Unit, N, Flow<N, Tuple<String, Boolean>>> nestedBody() {
 							return $do(
-							$(  define(parameterString("test", "Test string parameter"))  	, p1 ->
+							$(  define(parameterString("test", "Test string parameter"))	, p1 ->
 							$(  define(parameterBoolean("test", "Test boolean parameter"))	, p2 ->
 							$(  evaluate($do(
 								$(  p1						, v1 ->
@@ -170,7 +170,7 @@ public final class ParametersTest {
 						specialize(parameter("test", "Test nested parameter", new Object() {
 							public <N> Body<Unit, Unit, N, Flow<N, Tuple<String, Boolean>>> nestedBody() {
 								return $do(
-								$(  define(parameterString("test", "Test string parameter"))  	, p1 ->
+								$(  define(parameterString("test", "Test string parameter"))	, p1 ->
 								$(  define(parameterBoolean("test", "Test boolean parameter"))	, p2 ->
 								$(  evaluate($do(
 									$(  p1						, v1 ->
