@@ -101,7 +101,7 @@ public final class ParametersTest {
 			"Test command",
 			new Object() {
 				public <T> Body<Unit, Unit, T, Flow<T, Tuple<String, Boolean>>> testBody() {
-					return define(parameter("test", "Test nested parameter", new Object() {
+					return define(parameterNested("test", "Test nested parameter", new Object() {
 						public <N> Body<Unit, Unit, N, Flow<N, Tuple<String, Boolean>>> nestedBody() {
 							return $do(
 							$(  define(parameterString("test", "Test string parameter"))	, p1 ->
@@ -154,7 +154,7 @@ public final class ParametersTest {
 			new Object() {
 				public <T> Body<Unit, Unit, T, Flow<T, Either<Tuple<String, Character>, Tuple<String, Boolean>>>> testBody() {
 					return define(parameterUnion("test", "Test union parameter",
-						specialize(parameter("test", "Test nested parameter", new Object() {
+						specialize(parameterNested("test", "Test nested parameter", new Object() {
 							public <N> Body<Unit, Unit, N, Flow<N, Tuple<String, Character>>> nestedBody() {
 								return $do(
 								$(  define(parameterString("test", "Test string parameter"))		, p1 ->
@@ -167,7 +167,7 @@ public final class ParametersTest {
 								);
 							}
 						}::nestedBody), Either::left),
-						specialize(parameter("test", "Test nested parameter", new Object() {
+						specialize(parameterNested("test", "Test nested parameter", new Object() {
 							public <N> Body<Unit, Unit, N, Flow<N, Tuple<String, Boolean>>> nestedBody() {
 								return $do(
 								$(  define(parameterString("test", "Test string parameter"))	, p1 ->

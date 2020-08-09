@@ -2,10 +2,19 @@ package org.coherent.core;
 
 import java.util.Arrays;
 
+import org.coherent.core.Command;
+import static org.coherent.core.Command.*;
 import org.coherent.core.Command.Completion;
 import static org.coherent.core.Command.Completion.*;
 import org.coherent.core.Command.Parameter;
 import static org.coherent.core.Command.Parameter.*;
+import org.coherent.core.Command.Flow;
+import static org.coherent.core.Command.Flow.*;
+import org.coherent.core.Command.Body;
+import static org.coherent.core.Command.Body.*;
+
+import static org.coherent.core.Command.Body.Notation.*;
+import static org.coherent.core.Command.Flow.Notation.*;
 
 import org.jparsec.core.Parser;
 import static org.jparsec.core.Parser.*;
@@ -20,6 +29,8 @@ import static org.jparsec.core.parser.Combinator.*;
 
 import static org.jparsec.core.Parser.Notation.*;
 
+import org.monadium.core.data.Bottom;
+import static org.monadium.core.data.Bottom.*;
 import org.monadium.core.data.List;
 import static org.monadium.core.data.List.*;
 import org.monadium.core.data.Tuple;
@@ -39,11 +50,29 @@ public final class Parameters {
 			Arrays.stream(parameters)
 				.map(Parameter::completer)
 				.reduce(simple(nil()), (parser1, parser2) -> $do(
-				$(	option(attempt(lookahead(parser1)), nil())				, completions1 ->
-				$(	option(attempt(lookahead(parser2)), nil())				, completions2 ->
+				$(	option(attempt(lookahead(parser1)), nil())	, completions1 ->
+				$(	option(attempt(lookahead(parser2)), nil())	, completions2 ->
 				$(	simple(completions1.concat(completions2))	)))
 				))
 				.map(completions -> list(completions.stream().distinct().toArray(Completion[]::new)))
+		);
+	}
+
+	public static <S, C, A> Parameter<S, C, A> parameterNested(String name, String description, Definition<S, C, A> definition) {
+		return parameter(
+			name,
+			description,
+			recur(() -> parseBody($do(
+			$(	definition.<Bottom> body()	, flow ->
+			$(	evaluate(evalFlow(flow))	))
+			))),
+			$do(
+			$(	recur(() -> analyzeBody($do(
+				$(	definition.<Bottom> body()	, flow ->
+				$(	evaluate(evalFlow(flow))	))
+				)))											, result ->
+			$(	simple(result.fromLeft(nil()))				))
+			)
 		);
 	}
 

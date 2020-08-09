@@ -125,23 +125,6 @@ public abstract class Command<S, C, A> {
 		Parameter(String name, String description, Parser<Text, Context<S, C>, Bottom, A> parser, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) { this.name = name; this.description = description; this.parser = parser; this.completer = completer; }
 
 		public static <S, C, A> Parameter<S, C, A> parameter(String name, String description, Parser<Text, Context<S, C>, Bottom, A> parser, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) { return new Parameter<>(name, description, parser, completer); }
-		public static <S, C, A> Parameter<S, C, A> parameter(String name, String description, Definition<S, C, A> definition) {
-			return parameter(
-				name,
-				description,
-				recur(() -> parseBody($do(
-				$(	definition.<Bottom> body()	, flow ->
-				$(	evaluate(evalFlow(flow))	))
-				))),
-				$do(
-				$(	recur(() -> analyzeBody($do(
-					$(	definition.<Bottom> body()	, flow ->
-					$(	evaluate(evalFlow(flow))	))
-					)))											, result ->
-				$(	simple(result.fromLeft(nil()))				))
-				)
-			);
-		}
 
 		public String name() { return name; }
 		public String description() { return description; }
