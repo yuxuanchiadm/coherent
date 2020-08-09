@@ -71,15 +71,15 @@ public abstract class Command<S, C, A> {
 			@Override public <R> R caseof(Base.Case<S, C, R> caseBase, Fork.Case<S, C, R> caseFork) { return caseBase.caseBase(command); }
 		}
 		public static final class Fork<S, C, T, D, P, A> extends Context<S, C> {
+			final Command<S, C, A> command;
 			final Context<T, D> parent;
 			final P parameter;
 			final String binding;
-			final Command<S, C, A> command;
 
-			Fork(S source, C context, Context<T, D> parent, P parameter, String binding, Command<S, C, A> command) { super(source, context); this.parent = parent; this.parameter = parameter; this.binding = binding; this.command = command; }
+			Fork(S source, C context, Command<S, C, A> command, Context<T, D> parent, P parameter, String binding) { super(source, context); this.command = command; this.parent = parent; this.parameter = parameter; this.binding = binding; }
 
-			public interface Case<S, C, R> { <T, D, P, A> R caseFork(Context<T, D> parent, P parameter, String binding, Command<S, C, A> command); }
-			@Override public <R> R caseof(Base.Case<S, C, R> caseBase, Fork.Case<S, C, R> caseFork) { return caseFork.caseFork(parent, parameter, binding, command); }
+			public interface Case<S, C, R> { <T, D, P, A> R caseFork(Command<S, C, A> command, Context<T, D> parent, P parameter, String binding); }
+			@Override public <R> R caseof(Base.Case<S, C, R> caseBase, Fork.Case<S, C, R> caseFork) { return caseFork.caseFork(command, parent, parameter, binding); }
 		}
 
 		final S source;
@@ -93,13 +93,13 @@ public abstract class Command<S, C, A> {
 
 		public static <S, C, A> Context<S, C> base(S source, C context, Command<S, C, A> command) { return new Base<>(source, context, command); }
 		public static <S, C, A> Context<S, C> base(Tuple<S, C> environment, Command<S, C, A> command) { return base(environment.first(), environment.second(), command); }
-		public static <S, C, T, D, P, A> Context<S, C> fork(S source, C context, Context<T, D> parent, P parameter, String binding, Command<S, C, A> command) { return new Fork<>(source, context, parent, parameter, binding, command); }
-		public static <S, C, T, D, P, A> Context<S, C> fork(Tuple<S, C> environment, Context<T, D> parent, P parameter, String binding, Command<S, C, A> command) { return fork(environment.first(), environment.second(), parent, parameter, binding, command); }
+		public static <S, C, T, D, P, A> Context<S, C> fork(S source, C context, Command<S, C, A> command, Context<T, D> parent, P parameter, String binding) { return new Fork<>(source, context, command, parent, parameter, binding); }
+		public static <S, C, T, D, P, A> Context<S, C> fork(Tuple<S, C> environment, Command<S, C, A> command, Context<T, D> parent, P parameter, String binding) { return fork(environment.first(), environment.second(), command, parent, parameter, binding); }
 
-		public S source() { return source; }
-		public C context() { return context; }
+		public final S source() { return source; }
+		public final C context() { return context; }
 
-		public Tuple<S, C> environment() { return tuple(source, context); }
+		public final Tuple<S, C> environment() { return tuple(source, context); }
 	}
 	public static final class Completion {
 		final Text completion;
@@ -406,7 +406,7 @@ public abstract class Command<S, C, A> {
 			return binding.match(new Binding.Match<>() {
 				@Override public <T, D> Parser<Text, Context<S, C>, Bottom, Action<A>>
 				caseEntry(BiFunction<Context<S, C>, P, Tuple<T, D>> delegator, Command<T, D, A> command) {
-					return localUser(recur(() -> parseCommand(command)), context -> fork(delegator.apply(context, parameter), context, parameter, binding.binding(), command));
+					return localUser(recur(() -> parseCommand(command)), context -> fork(delegator.apply(context, parameter), command, context, parameter, binding.binding()));
 				}
 			});
 		}
@@ -414,7 +414,7 @@ public abstract class Command<S, C, A> {
 			return binding.match(new Binding.Match<>() {
 				@Override public <T, D> Parser<Text, Context<S, C>, Bottom, List<Completion>>
 				caseEntry(BiFunction<Context<S, C>, P, Tuple<T, D>> delegator, Command<T, D, A> command) {
-					return localUser(recur(() -> analyzeCommand(command)), context -> fork(delegator.apply(context, parameter), context, parameter, binding.binding(), command));
+					return localUser(recur(() -> analyzeCommand(command)), context -> fork(delegator.apply(context, parameter), command, context, parameter, binding.binding()));
 				}
 			});
 		}
