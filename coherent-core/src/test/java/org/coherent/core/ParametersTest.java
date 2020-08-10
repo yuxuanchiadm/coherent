@@ -38,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public final class ParametersTest {
 	@Test public void testOption() {
-		Command<Unit, Unit, Integer> testCommand = node(
+		Command<Unit, Unit, Integer> testCommand = command(
 			"test",
 			"Test command",
 			new Object() {
@@ -77,7 +77,7 @@ public final class ParametersTest {
 		assertEquals(list(completion(text("bar"), location().advanceString("test "))), result6.coerceResult());
 	}
 	@Test public void testLiteral() {
-		Command<Unit, Unit, String> testCommand = node(
+		Command<Unit, Unit, String> testCommand = command(
 			"test",
 			"Test command",
 			new Object() {
@@ -116,7 +116,7 @@ public final class ParametersTest {
 		assertEquals(list(completion(text("bar"), location().advanceString("test "))), result6.coerceResult());
 	}
 	@Test public void testPhrase() {
-		Command<Unit, Unit, String> testCommand = node(
+		Command<Unit, Unit, String> testCommand = command(
 			"test",
 			"Test command",
 			new Object() {
@@ -148,7 +148,7 @@ public final class ParametersTest {
 		assertEquals(list(), result4.coerceResult());
 	}
 	@Test public void testBoolean() {
-		Command<Unit, Unit, Boolean> testCommand = node(
+		Command<Unit, Unit, Boolean> testCommand = command(
 			"test",
 			"Test command",
 			new Object() {
@@ -187,7 +187,7 @@ public final class ParametersTest {
 		assertEquals(list(completion(text("true"), location().advanceString("test "))), result6.coerceResult());
 	}
 	@Test public void testInteger() {
-		Command<Unit, Unit, Integer> testCommand = node(
+		Command<Unit, Unit, Integer> testCommand = command(
 			"test",
 			"Test command",
 			new Object() {
@@ -218,7 +218,7 @@ public final class ParametersTest {
 		assertEquals(list(), result4.coerceResult());
 	}
 	@Test public void testFloat() {
-		Command<Unit, Unit, Float> testCommand = node(
+		Command<Unit, Unit, Float> testCommand = command(
 			"test",
 			"Test command",
 			new Object() {
@@ -254,7 +254,7 @@ public final class ParametersTest {
 		assertEquals(list(), result5.coerceResult());
 	}
 	@Test public void testCharacter() {
-		Command<Unit, Unit, Character> testCommand = node(
+		Command<Unit, Unit, Character> testCommand = command(
 			"test",
 			"Test command",
 			new Object() {
@@ -293,7 +293,7 @@ public final class ParametersTest {
 		assertEquals(list(), result6.coerceResult());
 	}
 	@Test public void testString() {
-		Command<Unit, Unit, String> testCommand = node(
+		Command<Unit, Unit, String> testCommand = command(
 			"test",
 			"Test command",
 			new Object() {

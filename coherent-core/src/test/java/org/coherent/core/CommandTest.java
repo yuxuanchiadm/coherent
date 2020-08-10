@@ -57,7 +57,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class CommandTest {
 	@Test public void testBasic() {
-		Command<Unit, Unit, Unit> testCommand = node(
+		Command<Unit, Unit, Unit> testCommand = command(
 			"test",
 			"Test command",
 			Body::empty,
@@ -106,7 +106,7 @@ public class CommandTest {
 		assertEquals(list(), result10.coerceResult());
 	}
 	@Test public void testParameter() {
-		Command<Unit, Unit, Tuple<String, Integer>> testCommand = node(
+		Command<Unit, Unit, Tuple<String, Integer>> testCommand = command(
 			"test",
 			"Test command",
 			new Object() {
@@ -180,7 +180,7 @@ public class CommandTest {
 		assertEquals(list(), result14.coerceResult());
 	}
 	@Test public void testUnion() {
-		Command<Unit, Unit, Either<String, Boolean>> testCommand = node(
+		Command<Unit, Unit, Either<String, Boolean>> testCommand = command(
 			"test",
 			"Test command",
 			new Object() {
@@ -229,7 +229,7 @@ public class CommandTest {
 		assertEquals(list(completion(text("false"), location().advanceString("test "))), result7.coerceResult());
 	}
 	@Test public void testNested() {
-		Command<Unit, Unit, Tuple<String, Boolean>> testCommand = node(
+		Command<Unit, Unit, Tuple<String, Boolean>> testCommand = command(
 			"test",
 			"Test command",
 			new Object() {
@@ -281,7 +281,7 @@ public class CommandTest {
 		assertEquals(list(completion(text("false"), location().advanceString("test \"foo\" "))), result7.coerceResult());
 	}
 	@Test public void testUnionNested() {
-		Command<Unit, Unit, Either<Tuple<String, Character>, Tuple<String, Boolean>>> testCommand = node(
+		Command<Unit, Unit, Either<Tuple<String, Character>, Tuple<String, Boolean>>> testCommand = command(
 			"test",
 			"Test command",
 			new Object() {
@@ -359,21 +359,21 @@ public class CommandTest {
 		assertEquals(list(completion(text("true"), location().advanceString("test \"foo\" "))), result9.coerceResult());
 	}
 	@Test public void testDispatcher() {
-		Command<Unit, Unit, Unit> helpCommand = node(
+		Command<Unit, Unit, Unit> helpCommand = command(
 			"help",
 			"Help command",
 			Body::empty,
 			dispatcher(),
 			handler((context, parameter) -> handled(() -> parameter))
 		);
-		Command<Unit, Unit, Unit> debugCommand = node(
+		Command<Unit, Unit, Unit> debugCommand = command(
 			"debug",
 			"Register command",
 			Body::empty,
 			dispatcher(),
 			handler((context, parameter) -> handled(() -> parameter))
 		);
-		Command<Unit, Unit, Unit> testCommand = node(
+		Command<Unit, Unit, Unit> testCommand = command(
 			"test",
 			"Test command",
 			Body::empty,
@@ -434,7 +434,7 @@ public class CommandTest {
 		assertTrue(result11.isFail());
 	}
 	@Test public void testRejected() {
-		Command<Unit, Unit, Unit> testCommand = node(
+		Command<Unit, Unit, Unit> testCommand = command(
 			"test",
 			"Test command",
 			Body::empty,
@@ -448,7 +448,7 @@ public class CommandTest {
 		assertTrue(result1.coerceResult().isRejected());
 	}
 	@Test public void testSuggest() {
-		Command<Unit, Unit, Integer> testCommand = node(
+		Command<Unit, Unit, Integer> testCommand = command(
 			"test",
 			"Test command",
 			new Object() {
@@ -469,7 +469,7 @@ public class CommandTest {
 		assertEquals(list(completion(text("0"), location().advanceString("test ")), completion(text("12450"), location().advanceString("test "))), result1.coerceResult());
 	}
 	@Test public void testExtend() {
-		Command<Unit, Unit, Integer> testCommand = node(
+		Command<Unit, Unit, Integer> testCommand = command(
 			"test",
 			"Test command",
 			new Object() {

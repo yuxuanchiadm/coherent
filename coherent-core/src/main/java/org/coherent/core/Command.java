@@ -685,11 +685,14 @@ public abstract class Command<S, C, A> {
 	public abstract <R> R caseof(Node.Case<S, C, A, R> caseEntry);
 
 	public static <S, C, P, A> Command<S, C, A> node(String name, String description, Definition<S, C, P> definition, Dispatcher<S, C, P, A> dispatcher, Behavior<S, C, P, A> behavior) { return new Node<>(name, description, definition, dispatcher, behavior); }
-	public static <S, C, P, A> Command<S, C, A> node(String name, String description, Definition<S, C, P> definition, Behavior<S, C, P, A> behavior) { return node(name, description, definition, dispatcher(), behavior); }
-	public static <S, C, P, A> Command<S, C, A> node(String name, String description, Definition<S, C, P> definition, Dispatcher<S, C, P, A> dispatcher) { return node(name, description, definition, dispatcher, stub()); }
-	public static <S, C, A> Command<S, C, A> node(String name, String description, Dispatcher<S, C, Unit, A> dispatcher, Behavior<S, C, Unit, A> behavior) { return node(name, description, Body::empty, dispatcher, behavior); }
-	public static <S, C, A> Command<S, C, A> node(String name, String description, Dispatcher<S, C, Unit, A> dispatcher) { return node(name, description, Body::empty, dispatcher, stub()); }
-	public static <S, C, A> Command<S, C, A> node(String name, String description) { return node(name, description, Body::empty, dispatcher(), stub()); }
+	public static <S, C, P, A> Command<S, C, A> command(String name, String description, Definition<S, C, P> definition, Dispatcher<S, C, P, A> dispatcher, Behavior<S, C, P, A> behavior) { return node(name, description, definition, dispatcher, behavior); }
+	public static <S, C, P, A> Command<S, C, A> command(String name, String description, Definition<S, C, P> definition, Dispatcher<S, C, P, A> dispatcher) { return node(name, description, definition, dispatcher, stub()); }
+	public static <S, C, P, A> Command<S, C, A> command(String name, String description, Definition<S, C, P> definition, Behavior<S, C, P, A> behavior) { return node(name, description, definition, dispatcher(), behavior); }
+	public static <S, C, P, A> Command<S, C, A> command(String name, String description, Definition<S, C, P> definition) { return node(name, description, definition, dispatcher(), stub()); }
+	public static <S, C, A> Command<S, C, A> command(String name, String description, Dispatcher<S, C, Unit, A> dispatcher, Behavior<S, C, Unit, A> behavior) { return node(name, description, Body::empty, dispatcher, behavior); }
+	public static <S, C, A> Command<S, C, A> command(String name, String description, Dispatcher<S, C, Unit, A> dispatcher) { return node(name, description, Body::empty, dispatcher, stub()); }
+	public static <S, C, A> Command<S, C, A> command(String name, String description, Behavior<S, C, Unit, A> behavior) { return node(name, description, Body::empty, dispatcher(), behavior); }
+	public static <S, C, A> Command<S, C, A> command(String name, String description) { return node(name, description, Body::empty, dispatcher(), stub()); }
 	public static <S, C, A> Command<S, C, A> root(Command<S, C, A> command, String binding) {
 		return node(
 			"root",
