@@ -116,35 +116,123 @@ public abstract class Command<S, C, A> {
 		@Override public boolean equals(Object x) { return x instanceof Completion && Objects.equals(completion, ((Completion) x).completion) && Objects.equals(location, ((Completion) x).location); }
 		@Override public int hashCode() { return Objects.hash(completion, location); }
 	}
-	public static final class Parameter<S, C, A> {
+	public static abstract class Parameter<S, C, A> {
+		public static final class Atomic<S, C, A> extends Parameter<S, C, A> {
+			final Parser<Text, Context<S, C>, Bottom, A> parser;
+			final Parser<Text, Context<S, C>, Bottom, List<Completion>> completer;
+
+			Atomic(String name, String description, Parser<Text, Context<S, C>, Bottom, A> parser, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) { super(name, description); this.parser = parser; this.completer = completer; }
+
+			public interface Case<S, C, A, R> { R caseAtomic(Parser<Text, Context<S, C>, Bottom, A> parser, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer); }
+			@Override public <R> R caseof(Atomic.Case<S, C, A, R> caseAtomic, Union.Case<S, C, A, R> caseUnion, Nested.Case<S, C, A, R> caseNested) { return caseAtomic.caseAtomic(parser, completer); }
+
+			@Override public <B> Parameter<S, C, B> map(Function<A, B> f) { return atomic(name, description, parser.map(f), completer); }
+		}
+		public static final class Union<S, C, X, A> extends Parameter<S, C, A> {
+			final List<Parameter<S, C, X>> parameters;
+			final Function<X, Parser<Text, Context<S, C>, Bottom, A>> extend;
+			final Parser<Text, Context<S, C>, Bottom, List<Completion>> suggest;
+
+			Union(String name, String description, List<Parameter<S, C, X>> parameters, Function<X, Parser<Text, Context<S, C>, Bottom, A>> extend, Parser<Text, Context<S, C>, Bottom, List<Completion>> suggest) { super(name, description); this.parameters = parameters; this.extend = extend; this.suggest = suggest; }
+
+			public interface Case<S, C, A, R> { <X> R caseUnion(List<Parameter<S, C, X>> parameters, Function<X, Parser<Text, Context<S, C>, Bottom, A>> extend, Parser<Text, Context<S, C>, Bottom, List<Completion>> suggest); }
+			@Override public <R> R caseof(Atomic.Case<S, C, A, R> caseAtomic, Union.Case<S, C, A, R> caseUnion, Nested.Case<S, C, A, R> caseNested) { return caseUnion.caseUnion(parameters, extend, suggest); }
+
+			@Override public <B> Parameter<S, C, B> map(Function<A, B> f) { return union(name, description, parameters, x -> extend.apply(x).map(f), suggest); }
+		}
+		public static final class Nested<S, C, X, A> extends Parameter<S, C, A> {
+			final Definition<S, C, X> definition;
+			final Function<X, Parser<Text, Context<S, C>, Bottom, A>> extend;
+			final Parser<Text, Context<S, C>, Bottom, List<Completion>> suggest;
+
+			Nested(String name, String description, Definition<S, C, X> definition, Function<X, Parser<Text, Context<S, C>, Bottom, A>> extend, Parser<Text, Context<S, C>, Bottom, List<Completion>> suggest) { super(name, description); this.definition = definition; this.extend = extend; this.suggest = suggest; }
+
+			public interface Case<S, C, A, R> { <X> R caseNested(Definition<S, C, X> definition, Function<X, Parser<Text, Context<S, C>, Bottom, A>> extend, Parser<Text, Context<S, C>, Bottom, List<Completion>> suggest); }
+			@Override public <R> R caseof(Atomic.Case<S, C, A, R> caseAtomic, Union.Case<S, C, A, R> caseUnion, Nested.Case<S, C, A, R> caseNested) { return caseNested.caseNested(definition, extend, suggest); }
+
+			@Override public <B> Parameter<S, C, B> map(Function<A, B> f) { return nested(name, description, definition, x -> extend.apply(x).map(f), suggest); }
+		}
+
 		final String name;
 		final String description;
-		final Parser<Text, Context<S, C>, Bottom, A> parser;
-		final Parser<Text, Context<S, C>, Bottom, List<Completion>> completer;
 
-		Parameter(String name, String description, Parser<Text, Context<S, C>, Bottom, A> parser, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) { this.name = name; this.description = description; this.parser = parser; this.completer = completer; }
+		Parameter(String name, String description) { this.name = name; this.description = description; }
 
-		public static <S, C, A> Parameter<S, C, A> parameter(String name, String description, Parser<Text, Context<S, C>, Bottom, A> parser, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) { return new Parameter<>(name, description, parser, completer); }
+		public interface Match<S, C, A, R> extends Atomic.Case<S, C, A, R>, Union.Case<S, C, A, R>, Nested.Case<S, C, A, R> {}
+		public final <R> R match(Match<S, C, A, R> match) { return caseof(match, match, match); }
+		public abstract <R> R caseof(Atomic.Case<S, C, A, R> caseAtomic, Union.Case<S, C, A, R> caseUnion, Nested.Case<S, C, A, R> caseNested);
+
+		public static <S, C, A> Parameter<S, C, A> atomic(String name, String description, Parser<Text, Context<S, C>, Bottom, A> parser, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) { return new Atomic<>(name, description, parser, completer); }
+		public static <S, C, X, A> Parameter<S, C, A> union(String name, String description, List<Parameter<S, C, X>> parameters, Function<X, Parser<Text, Context<S, C>, Bottom, A>> extend, Parser<Text, Context<S, C>, Bottom, List<Completion>> suggest) { return new Union<>(name, description, parameters, extend, suggest); }
+		public static <S, C, A> Parameter<S, C, A> union(String name, String description, List<Parameter<S, C, A>> parameters) { return union(name, description, parameters, Parser::simple, simple(nil())); }
+		@SafeVarargs public static <S, C, A> Parameter<S, C, A> union(String name, String description, Parameter<S, C, A>... parameters) { return union(name, description, list(parameters)); }
+		public static <S, C, X, A> Parameter<S, C, A> nested(String name, String description, Definition<S, C, X> definition, Function<X, Parser<Text, Context<S, C>, Bottom, A>> extend, Parser<Text, Context<S, C>, Bottom, List<Completion>> suggest) { return new Nested<>(name, description, definition, extend, suggest); }
+		public static <S, C, A> Parameter<S, C, A> nested(String name, String description, Definition<S, C, A> definition) { return nested(name, description, definition, Parser::simple, simple(nil())); }
+		public static <S, C, A> Parameter<S, C, A> parameter(String name, String description, Parser<Text, Context<S, C>, Bottom, A> parser, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) { return atomic(name, description, parser, completer); }
 
 		public String name() { return name; }
 		public String description() { return description; }
-		public Parser<Text, Context<S, C>, Bottom, A> parser() { return parser; }
-		public Parser<Text, Context<S, C>, Bottom, List<Completion>> completer() { return completer; }
 
-		public static <S, C, A> Parameter<S, C, A> describe(Parameter<S, C, A> parameter, String name, String description) { return parameter(name, description, parameter.parser(), parameter.completer()); }
 		public static <S, C, A, B> Parameter<S, C, B> specialize(Parameter<S, C, A> parameter, Function<A, B> f) { return parameter.map(f); }
-		public static <S, C, A, B> Parameter<S, C, B> extend(Parameter<S, C, A> parameter, Function<A, Parser<Text, Context<S, C>, Bottom, B>> f) { return parameter(parameter.name(), parameter.description(), parameter.parser().flatMap(f), parameter.completer()); }
-		public static <S, C, A> Parameter<S, C, A> suggest(Parameter<S, C, A> parameter, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) {
-			return parameter(parameter.name(), parameter.description(), parameter.parser(), $do(
-			$(	option(attempt(lookahead(parameter.completer())), nil())				, completions1 ->
-			$(	option(attempt(lookahead(completer)), nil())							, completions2 ->
-			$(	simple(list(Stream.concat(completions1.stream(), completions2.stream())
-					.distinct()
-					.toArray(Completion[]::new)
-				))																		)))
-			));
+		public static <S, C, A, B> Parameter<S, C, B> extend(Parameter<S, C, A> parameter, Function<A, Parser<Text, Context<S, C>, Bottom, B>> extend) {
+			return parameter.match(new Parameter.Match<>() {
+				@Override public Parameter<S, C, B>
+				caseAtomic(Parser<Text, Context<S, C>, Bottom, A> parser, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) {
+					return atomic(parameter.name(), parameter.description(), parser.flatMap(extend), completer);
+				}
+				@Override public <X> Parameter<S, C, B>
+				caseUnion(List<Parameter<S, C, X>> parameters, Function<X, Parser<Text, Context<S, C>, Bottom, A>> extend1, Parser<Text, Context<S, C>, Bottom, List<Completion>> suggest) {
+					return union(parameter.name(), parameter.description(), parameters, x -> extend1.apply(x).flatMap(extend), suggest);
+				}
+				@Override public <X> Parameter<S, C, B>
+				caseNested(Definition<S, C, X> definition, Function<X, Parser<Text, Context<S, C>, Bottom, A>> extend1, Parser<Text, Context<S, C>, Bottom, List<Completion>> suggest) {
+					return nested(parameter.name(), parameter.description(), definition, x -> extend1.apply(x).flatMap(extend), suggest);
+				}
+			});
+		}
+		public static <S, C, A> Parameter<S, C, A> suggest(Parameter<S, C, A> parameter, Parser<Text, Context<S, C>, Bottom, List<Completion>> suggest) {
+			return parameter.match(new Parameter.Match<>() {
+				@Override public Parameter<S, C, A>
+				caseAtomic(Parser<Text, Context<S, C>, Bottom, A> parser, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) {
+					return atomic(parameter.name(), parameter.description(), parser, completer(completer, suggest));
+				}
+				@Override public <X> Parameter<S, C, A>
+				caseUnion(List<Parameter<S, C, X>> parameters, Function<X, Parser<Text, Context<S, C>, Bottom, A>> extend, Parser<Text, Context<S, C>, Bottom, List<Completion>> suggest1) {
+					return union(parameter.name(), parameter.description(), parameters, extend, completer(suggest1, suggest));
+				}
+				@Override public <X> Parameter<S, C, A>
+				caseNested(Definition<S, C, X> definition, Function<X, Parser<Text, Context<S, C>, Bottom, A>> extend, Parser<Text, Context<S, C>, Bottom, List<Completion>> suggest1) {
+					return nested(parameter.name(), parameter.description(), definition, extend, completer(suggest1, suggest));
+				}
+			});
+		}
+		public static <S, C, A> Parameter<S, C, A> describe(Parameter<S, C, A> parameter, String name, String description) {
+			return parameter.match(new Parameter.Match<>() {
+				@Override public Parameter<S, C, A>
+				caseAtomic(Parser<Text, Context<S, C>, Bottom, A> parser, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) {
+					return atomic(name, description, parser, completer);
+				}
+				@Override public <X> Parameter<S, C, A>
+				caseUnion(List<Parameter<S, C, X>> parameters, Function<X, Parser<Text, Context<S, C>, Bottom, A>> extend, Parser<Text, Context<S, C>, Bottom, List<Completion>> suggest) {
+					return union(name, description, parameters, extend, suggest);
+				}
+				@Override public <X> Parameter<S, C, A>
+				caseNested(Definition<S, C, X> definition, Function<X, Parser<Text, Context<S, C>, Bottom, A>> extend, Parser<Text, Context<S, C>, Bottom, List<Completion>> suggest) {
+					return nested(name, description, definition, extend, suggest);
+				}
+			});
 		}
 
+		@SafeVarargs public static <S, C> Parser<Text, Context<S, C>, Bottom, List<Completion>> completer(Parser<Text, Context<S, C>, Bottom, List<Completion>>... completers) {
+			return Arrays.stream(completers).reduce(
+				simple(nil()),
+				(completer1, completer2) -> $do(
+					$(	option(attempt(lookahead(completer1)), nil())	, completions1 ->
+					$(	option(attempt(lookahead(completer2)), nil())	, completions2 ->
+					$(	simple(completions1.concat(completions2))		)))
+				)
+			);
+		}
 		public static <S, C> Parser<Text, Context<S, C>, Bottom, List<Completion>> completer(BiFunction<Text, Context<S, C>, List<Text>> completer) {
 			return $do(
 			$(	getStream()																, input ->
@@ -152,7 +240,6 @@ public abstract class Command<S, C, A> {
 			$(	getLocation()															, location ->
 			$(	simple(list(completer.apply(input, context).stream()
 					.filter(input::isPrefixOf)
-					.distinct()
 					.map(completion -> completion(completion, location))
 					.toArray(Completion[]::new)
 				))																		))))
@@ -165,7 +252,6 @@ public abstract class Command<S, C, A> {
 			$(	getLocation()															, location ->
 			$(	simple(list(Arrays.stream(completions)
 					.filter(input::isPrefixOf)
-					.distinct()
 					.map(completion -> completion(completion, location))
 					.toArray(Completion[]::new)
 				))																		))))
@@ -173,10 +259,55 @@ public abstract class Command<S, C, A> {
 		}
 		public static <S, C> Parser<Text, Context<S, C>, Bottom, List<Completion>> incompletable() { return simple(nil()); }
 
-		public static <S, C, A> Parser<Text, Context<S, C>, Bottom, A> parseParameter(Parameter<S, C, A> parameter) { return conclude(parameter.parser(), error("Could not parse command parameter " + escapeString(parameter.name()))); }
-		public static <S, C, A> Parser<Text, Context<S, C>, Bottom, List<Completion>> analyzeParameter(Parameter<S, C, A> parameter) { return parameter.completer(); }
+		public static <S, C, A> Parser<Text, Context<S, C>, Bottom, A> parseParameter(Parameter<S, C, A> parameter) {
+			return parameter.match(new Parameter.Match<>() {
+				@Override public Parser<Text, Context<S, C>, Bottom, A>
+				caseAtomic(Parser<Text, Context<S, C>, Bottom, A> parser, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) {
+					return conclude(parser, error("Could not parse command parameter " + escapeString(parameter.name())));
+				}
+				@Override public <X> Parser<Text, Context<S, C>, Bottom, A>
+				caseUnion(List<Parameter<S, C, X>> parameters, Function<X, Parser<Text, Context<S, C>, Bottom, A>> extend, Parser<Text, Context<S, C>, Bottom, List<Completion>> suggest) {
+					return parameters.foldl((parser, parameter) -> parser.plus($do(
+					$(	attempt(recur(() -> parseParameter(parameter)))	, x ->
+					$(	extend.apply(x)									))
+					)), ignore());
+				}
+				@Override public <X> Parser<Text, Context<S, C>, Bottom, A>
+				caseNested(Definition<S, C, X> definition, Function<X, Parser<Text, Context<S, C>, Bottom, A>> extend, Parser<Text, Context<S, C>, Bottom, List<Completion>> suggest) {
+					return $do(
+					$(	recur(() -> parseBody($do(
+						$(	definition.<Bottom> body()	, flow ->
+						$(	evaluate(evalFlow(flow))	))
+						)))											, x ->
+					$(	extend.apply(x)								))
+					);
+				}
+			});
+		}
+		public static <S, C, A> Parser<Text, Context<S, C>, Bottom, List<Completion>> analyzeParameter(Parameter<S, C, A> parameter) {
+			return parameter.match(new Parameter.Match<>() {
+				@Override public Parser<Text, Context<S, C>, Bottom, List<Completion>>
+				caseAtomic(Parser<Text, Context<S, C>, Bottom, A> parser, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) {
+					return completer;
+				}
+				@Override public <X> Parser<Text, Context<S, C>, Bottom, List<Completion>>
+				caseUnion(List<Parameter<S, C, X>> parameters, Function<X, Parser<Text, Context<S, C>, Bottom, A>> extend, Parser<Text, Context<S, C>, Bottom, List<Completion>> suggest) {
+					return completer(parameters.foldl((completer, parameter) -> completer(completer, recur(() -> analyzeParameter(parameter))), simple(nil())), suggest);
+				}
+				@Override public <X> Parser<Text, Context<S, C>, Bottom, List<Completion>>
+				caseNested(Definition<S, C, X> definition, Function<X, Parser<Text, Context<S, C>, Bottom, A>> extend, Parser<Text, Context<S, C>, Bottom, List<Completion>> suggest) {
+					return completer($do(
+					$(	recur(() -> analyzeBody($do(
+						$(	definition.<Bottom> body()	, flow ->
+						$(	evaluate(evalFlow(flow))	))
+						)))											, result ->
+					$(	simple(result.fromLeft(nil()))				))
+					), suggest);
+				}
+			});
+		}
 
-		public <B> Parameter<S, C, B> map(Function<A, B> f) { return parameter(name, description, parser.map(f), completer); }
+		public abstract <B> Parameter<S, C, B> map(Function<A, B> f);
 	}
 	public static abstract class Flow<T, A> {
 		public static final class Value<T, A> extends Flow<T, A> {
@@ -443,7 +574,6 @@ public abstract class Command<S, C, A> {
 			$(	simple(list(dispatcher.bindings().stream()
 					.map(binding -> text(binding.binding()))
 					.filter(input::isPrefixOf)
-					.distinct()
 					.map(completion -> completion(completion, location))
 					.toArray(Completion[]::new)
 				))															)))
@@ -606,11 +736,20 @@ public abstract class Command<S, C, A> {
 				$(	recur(() -> analyzeBody($do(
 					$(	definition.<Bottom> body()	, flow ->
 					$(	evaluate(evalFlow(flow))	))
-					)))																		, result ->
+					)))																					, result ->
 				$(	result.caseof(
-						completions -> simple(completions),
-						parameter -> recur(() -> analyzeDispatcher(dispatcher, parameter))
-					)																		))
+						completions -> simple(list(completions.stream()
+							.distinct()
+							.toArray(Completion[]::new)
+						)),
+						parameter -> $do(
+						$(	recur(() -> analyzeDispatcher(dispatcher, parameter))	, completions ->
+						$(	simple(list(completions.stream()
+							.distinct()
+							.toArray(Completion[]::new)
+							))														))
+						)
+					)																					))
 				);
 			}
 		});

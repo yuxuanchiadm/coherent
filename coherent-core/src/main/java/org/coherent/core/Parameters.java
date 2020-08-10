@@ -2,19 +2,8 @@ package org.coherent.core;
 
 import java.util.Arrays;
 
-import org.coherent.core.Command;
-import static org.coherent.core.Command.*;
-import org.coherent.core.Command.Completion;
-import static org.coherent.core.Command.Completion.*;
 import org.coherent.core.Command.Parameter;
 import static org.coherent.core.Command.Parameter.*;
-import org.coherent.core.Command.Flow;
-import static org.coherent.core.Command.Flow.*;
-import org.coherent.core.Command.Body;
-import static org.coherent.core.Command.Body.*;
-
-import static org.coherent.core.Command.Body.Notation.*;
-import static org.coherent.core.Command.Flow.Notation.*;
 
 import org.jparsec.core.Parser;
 import static org.jparsec.core.Parser.*;
@@ -24,57 +13,12 @@ import org.jparsec.core.parser.Char;
 import static org.jparsec.core.parser.Char.*;
 import org.jparsec.core.parser.Read;
 import static org.jparsec.core.parser.Read.*;
-import org.jparsec.core.parser.Combinator;
-import static org.jparsec.core.parser.Combinator.*;
 
-import static org.jparsec.core.Parser.Notation.*;
-
-import org.monadium.core.data.Bottom;
-import static org.monadium.core.data.Bottom.*;
-import org.monadium.core.data.List;
-import static org.monadium.core.data.List.*;
 import org.monadium.core.data.Tuple;
 import static org.monadium.core.data.Tuple.*;
 
-import static org.monadium.core.Notation.*;
-
 public final class Parameters {
 	Parameters() {}
-
-	@SafeVarargs public static <S, C, A> Parameter<S, C, A> parameterUnion(String name, String description, Parameter<S, C, A>... parameters) {
-		return parameter(
-			name,
-			description,
-			Arrays.stream(parameters)
-				.reduce(ignore(), (parser, parameter) -> parser.plus(attempt(parameter.parser())), Parser::plus),
-			Arrays.stream(parameters)
-				.map(Parameter::completer)
-				.reduce(simple(nil()), (parser1, parser2) -> $do(
-				$(	option(attempt(lookahead(parser1)), nil())	, completions1 ->
-				$(	option(attempt(lookahead(parser2)), nil())	, completions2 ->
-				$(	simple(completions1.concat(completions2))	)))
-				))
-				.map(completions -> list(completions.stream().distinct().toArray(Completion[]::new)))
-		);
-	}
-
-	public static <S, C, A> Parameter<S, C, A> parameterNested(String name, String description, Definition<S, C, A> definition) {
-		return parameter(
-			name,
-			description,
-			recur(() -> parseBody($do(
-			$(	definition.<Bottom> body()	, flow ->
-			$(	evaluate(evalFlow(flow))	))
-			))),
-			$do(
-			$(	recur(() -> analyzeBody($do(
-				$(	definition.<Bottom> body()	, flow ->
-				$(	evaluate(evalFlow(flow))	))
-				)))											, result ->
-			$(	simple(result.fromLeft(nil()))				))
-			)
-		);
-	}
 
 	@SafeVarargs public static <S, C, A> Parameter<S, C, A> parameterOption(String name, String description, Tuple<String, A>... options) {
 		return parameter(

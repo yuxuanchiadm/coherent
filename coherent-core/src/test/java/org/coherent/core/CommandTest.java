@@ -41,6 +41,8 @@ import static org.jparsec.core.Parser.Notation.*;
 
 import org.monadium.core.data.Bottom;
 import static org.monadium.core.data.Bottom.*;
+import org.monadium.core.data.Either;
+import static org.monadium.core.data.Either.*;
 import org.monadium.core.data.List;
 import static org.monadium.core.data.List.*;
 import org.monadium.core.data.Tuple;
@@ -110,13 +112,13 @@ public class CommandTest {
 			new Object() {
 				public <T> Body<Unit, Unit, T, Flow<T, Tuple<String, Integer>>> testBody() {
 					return $do(
-					$(  define(parameter("test1", "Test string parameter", readString(), completer(text("\""))))	, p1 ->
-					$(  define(parameter("test2", "Test integer parameter", readInteger(), completer(text("0"))))	, p2 ->
-					$(  evaluate($do(
-						$(  p1						, v1 ->
-						$(  p2						, v2 ->
-						$(  value(tuple(v1, v2))	)))
-						))																															)))
+					$(	define(parameter("test", "Test string parameter", readString(), completer(text("\""))))		, p1 ->
+					$(	define(parameter("test", "Test integer parameter", readInteger(), completer(text("0"))))	, p2 ->
+					$(	evaluate($do(
+						$(	p1						, v1 ->
+						$(	p2						, v2 ->
+						$(	value(tuple(v1, v2))	)))
+						))																							)))
 					);
 				}
 			}::testBody,
@@ -176,6 +178,185 @@ public class CommandTest {
 		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result14 = completeCommand(rootCommand, text("test \"foo\" 12450 bar"), unit(), unit());
 		assertTrue(result14.isSuccess());
 		assertEquals(list(), result14.coerceResult());
+	}
+	@Test public void testUnion() {
+		Command<Unit, Unit, Either<String, Boolean>> testCommand = node(
+			"test",
+			"Test command",
+			new Object() {
+				public <T> Body<Unit, Unit, T, Flow<T, Either<String, Boolean>>> testBody() {
+					return define(union("test", "Test union parameter",
+						specialize(parameter("test", "Test string parameter", readString(), completer(text("\""))), Either::left),
+						specialize(parameter("test", "Test boolean parameter", readBoolean(), completer(text("false"), text("true"))), Either::right)
+					));
+				}
+			}::testBody,
+			dispatcher(),
+			handler((context, parameter) -> handled(() -> parameter))
+		);
+		Command<Unit, Unit, Either<String, Boolean>> rootCommand = root(testCommand);
+
+		Result<Text, Context<Unit, Unit>, Bottom, Action<Either<String, Boolean>>> result1 = runCommand(rootCommand, text("test \"foo\""), unit(), unit());
+		assertTrue(result1.isSuccess());
+		assertTrue(result1.coerceResult().isHandled());
+		assertEquals(left("foo"), result1.coerceResult().coerceHandled().get());
+
+		Result<Text, Context<Unit, Unit>, Bottom, Action<Either<String, Boolean>>> result2 = runCommand(rootCommand, text("test \"bar\""), unit(), unit());
+		assertTrue(result2.isSuccess());
+		assertTrue(result2.coerceResult().isHandled());
+		assertEquals(left("bar"), result2.coerceResult().coerceHandled().get());
+
+		Result<Text, Context<Unit, Unit>, Bottom, Action<Either<String, Boolean>>> result3 = runCommand(rootCommand, text("test false"), unit(), unit());
+		assertTrue(result3.isSuccess());
+		assertTrue(result3.coerceResult().isHandled());
+		assertEquals(right(false), result3.coerceResult().coerceHandled().get());
+
+		Result<Text, Context<Unit, Unit>, Bottom, Action<Either<String, Boolean>>> result4 = runCommand(rootCommand, text("test true"), unit(), unit());
+		assertTrue(result4.isSuccess());
+		assertTrue(result4.coerceResult().isHandled());
+		assertEquals(right(true), result4.coerceResult().coerceHandled().get());
+
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result5 = completeCommand(rootCommand, text("test "), unit(), unit());
+		assertTrue(result5.isSuccess());
+		assertEquals(list(completion(text("\""), location().advanceString("test ")), completion(text("false"), location().advanceString("test ")), completion(text("true"), location().advanceString("test "))), result5.coerceResult());
+
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result6 = completeCommand(rootCommand, text("test \""), unit(), unit());
+		assertTrue(result6.isSuccess());
+		assertEquals(list(completion(text("\""), location().advanceString("test "))), result6.coerceResult());
+
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result7 = completeCommand(rootCommand, text("test f"), unit(), unit());
+		assertTrue(result7.isSuccess());
+		assertEquals(list(completion(text("false"), location().advanceString("test "))), result7.coerceResult());
+	}
+	@Test public void testNested() {
+		Command<Unit, Unit, Tuple<String, Boolean>> testCommand = node(
+			"test",
+			"Test command",
+			new Object() {
+				public <T> Body<Unit, Unit, T, Flow<T, Tuple<String, Boolean>>> testBody() {
+					return define(nested("test", "Test nested parameter", new Object() {
+						public <N> Body<Unit, Unit, N, Flow<N, Tuple<String, Boolean>>> nestedBody() {
+							return $do(
+							$(	define(parameter("test", "Test string parameter", readString(), completer(text("\""))))						, p1 ->
+							$(	define(parameter("test", "Test boolean parameter", readBoolean(), completer(text("false"), text("true"))))	, p2 ->
+							$(	evaluate($do(
+								$(	p1						, v1 ->
+								$(	p2						, v2 ->
+								$(	value(tuple(v1, v2))	)))
+								))																											)))
+							);
+						}
+					}::nestedBody));
+				}
+			}::testBody,
+			dispatcher(),
+			handler((context, parameter) -> handled(() -> parameter))
+		);
+		Command<Unit, Unit, Tuple<String, Boolean>> rootCommand = root(testCommand);
+
+		Result<Text, Context<Unit, Unit>, Bottom, Action<Tuple<String, Boolean>>> result1 = runCommand(rootCommand, text("test \"foo\""), unit(), unit());
+		assertTrue(result1.isFail());
+
+		Result<Text, Context<Unit, Unit>, Bottom, Action<Tuple<String, Boolean>>> result2 = runCommand(rootCommand, text("test false"), unit(), unit());
+		assertTrue(result2.isFail());
+
+		Result<Text, Context<Unit, Unit>, Bottom, Action<Tuple<String, Boolean>>> result3 = runCommand(rootCommand, text("test \"foo\" false"), unit(), unit());
+		assertTrue(result3.isSuccess());
+		assertTrue(result3.coerceResult().isHandled());
+		assertEquals(tuple("foo", false), result3.coerceResult().coerceHandled().get());
+
+		Result<Text, Context<Unit, Unit>, Bottom, Action<Tuple<String, Boolean>>> result4 = runCommand(rootCommand, text("test false \"foo\""), unit(), unit());
+		assertTrue(result4.isFail());
+
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result5 = completeCommand(rootCommand, text("test "), unit(), unit());
+		assertTrue(result5.isSuccess());
+		assertEquals(list(completion(text("\""), location().advanceString("test "))), result5.coerceResult());
+
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result6 = completeCommand(rootCommand, text("test \"foo\" "), unit(), unit());
+		assertTrue(result6.isSuccess());
+		assertEquals(list(completion(text("false"), location().advanceString("test \"foo\" ")), completion(text("true"), location().advanceString("test \"foo\" "))), result6.coerceResult());
+
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result7 = completeCommand(rootCommand, text("test \"foo\" f"), unit(), unit());
+		assertTrue(result7.isSuccess());
+		assertEquals(list(completion(text("false"), location().advanceString("test \"foo\" "))), result7.coerceResult());
+	}
+	@Test public void testUnionNested() {
+		Command<Unit, Unit, Either<Tuple<String, Character>, Tuple<String, Boolean>>> testCommand = node(
+			"test",
+			"Test command",
+			new Object() {
+				public <T> Body<Unit, Unit, T, Flow<T, Either<Tuple<String, Character>, Tuple<String, Boolean>>>> testBody() {
+					return define(union("test", "Test union parameter",
+						specialize(nested("test", "Test nested parameter", new Object() {
+							public <N> Body<Unit, Unit, N, Flow<N, Tuple<String, Character>>> nestedBody() {
+								return $do(
+								$(	define(parameter("test", "Test string parameter", readString(), completer(text("\""))))			, p1 ->
+								$(	define(parameter("test", "Test character parameter", readCharacter(), completer(text("'"))))	, p2 ->
+								$(	evaluate($do(
+									$(	p1						, v1 ->
+									$(	p2						, v2 ->
+									$(	value(tuple(v1, v2))	)))
+									))																								)))
+								);
+							}
+						}::nestedBody), Either::left),
+						specialize(nested("test", "Test nested parameter", new Object() {
+							public <N> Body<Unit, Unit, N, Flow<N, Tuple<String, Boolean>>> nestedBody() {
+								return $do(
+								$(	define(parameter("test", "Test string parameter", readString(), completer(text("\""))))						, p1 ->
+								$(	define(parameter("test", "Test boolean parameter", readBoolean(), completer(text("false"), text("true"))))	, p2 ->
+								$(	evaluate($do(
+									$(	p1						, v1 ->
+									$(	p2						, v2 ->
+									$(	value(tuple(v1, v2))	)))
+									))																											)))
+								);
+							}
+						}::nestedBody), Either::right)
+					));
+				}
+			}::testBody,
+			dispatcher(),
+			handler((context, parameter) -> handled(() -> parameter))
+		);
+		Command<Unit, Unit, Either<Tuple<String, Character>, Tuple<String, Boolean>>> rootCommand = root(testCommand);
+
+		Result<Text, Context<Unit, Unit>, Bottom, Action<Either<Tuple<String, Character>, Tuple<String, Boolean>>>> result1 = runCommand(rootCommand, text("test \"foo\""), unit(), unit());
+		assertTrue(result1.isFail());
+
+		Result<Text, Context<Unit, Unit>, Bottom, Action<Either<Tuple<String, Character>, Tuple<String, Boolean>>>> result2 = runCommand(rootCommand, text("test \"foo\" 'a'"), unit(), unit());
+		assertTrue(result2.isSuccess());
+		assertTrue(result2.coerceResult().isHandled());
+		assertEquals(left(tuple("foo", 'a')), result2.coerceResult().coerceHandled().get());
+
+		Result<Text, Context<Unit, Unit>, Bottom, Action<Either<Tuple<String, Character>, Tuple<String, Boolean>>>> result3 = runCommand(rootCommand, text("test \"foo\" false"), unit(), unit());
+		assertTrue(result3.isSuccess());
+		assertTrue(result3.coerceResult().isHandled());
+		assertEquals(right(tuple("foo", false)), result3.coerceResult().coerceHandled().get());
+
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result4 = completeCommand(rootCommand, text("test "), unit(), unit());
+		assertTrue(result4.isSuccess());
+		assertEquals(list(completion(text("\""), location().advanceString("test "))), result4.coerceResult());
+
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result5 = completeCommand(rootCommand, text("test \""), unit(), unit());
+		assertTrue(result5.isSuccess());
+		assertEquals(list(completion(text("\""), location().advanceString("test "))), result5.coerceResult());
+
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result6 = completeCommand(rootCommand, text("test \"foo\" "), unit(), unit());
+		assertTrue(result6.isSuccess());
+		assertEquals(list(completion(text("'"), location().advanceString("test \"foo\" ")), completion(text("false"), location().advanceString("test \"foo\" ")), completion(text("true"), location().advanceString("test \"foo\" "))), result6.coerceResult());
+
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result7 = completeCommand(rootCommand, text("test \"foo\" '"), unit(), unit());
+		assertTrue(result7.isSuccess());
+		assertEquals(list(completion(text("'"), location().advanceString("test \"foo\" "))), result7.coerceResult());
+
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result8 = completeCommand(rootCommand, text("test \"foo\" f"), unit(), unit());
+		assertTrue(result8.isSuccess());
+		assertEquals(list(completion(text("false"), location().advanceString("test \"foo\" "))), result8.coerceResult());
+
+		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result9 = completeCommand(rootCommand, text("test \"foo\" t"), unit(), unit());
+		assertTrue(result9.isSuccess());
+		assertEquals(list(completion(text("true"), location().advanceString("test \"foo\" "))), result9.coerceResult());
 	}
 	@Test public void testDispatcher() {
 		Command<Unit, Unit, Unit> helpCommand = node(
@@ -273,7 +454,7 @@ public class CommandTest {
 			new Object() {
 				public <T> Body<Unit, Unit, T, Flow<T, Integer>> testBody() {
 					return define(suggest(
-						parameter("test1", "Test integer parameter", readInteger(), completer(text("0"))),
+						parameter("test", "Test integer parameter", readInteger(), completer(text("0"))),
 						completer(text("12450"))
 					));
 				}
@@ -294,7 +475,7 @@ public class CommandTest {
 			new Object() {
 				public <T> Body<Unit, Unit, T, Flow<T, Integer>> testBody() {
 					return define(extend(
-						parameter("test1", "Test integer parameter", readInteger(), completer(text("0"))),
+						parameter("test", "Test integer parameter", readInteger(), completer(text("0"))),
 						i -> $do(
 						$(	character('!')	, () ->
 						$(	simple(i)		))
