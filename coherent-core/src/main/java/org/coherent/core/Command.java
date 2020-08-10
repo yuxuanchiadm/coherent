@@ -175,7 +175,7 @@ public abstract class Command<S, C, A> {
 
 		public static <S, C, A, B> Parameter<S, C, B> specialize(Parameter<S, C, A> parameter, Function<A, B> f) { return parameter.map(f); }
 		public static <S, C, A, B> Parameter<S, C, B> extend(Parameter<S, C, A> parameter, Function<A, Parser<Text, Context<S, C>, Bottom, B>> extend) {
-			return parameter.match(new Parameter.Match<>() {
+			return parameter.match(new Parameter.Match<S, C, A, Parameter<S, C, B>>() {
 				@Override public Parameter<S, C, B>
 				caseAtomic(Parser<Text, Context<S, C>, Bottom, A> parser, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) {
 					return atomic(parameter.name(), parameter.description(), parser.flatMap(extend), completer);
@@ -191,7 +191,7 @@ public abstract class Command<S, C, A> {
 			});
 		}
 		public static <S, C, A> Parameter<S, C, A> suggest(Parameter<S, C, A> parameter, Parser<Text, Context<S, C>, Bottom, List<Completion>> suggest) {
-			return parameter.match(new Parameter.Match<>() {
+			return parameter.match(new Parameter.Match<S, C, A, Parameter<S, C, A>>() {
 				@Override public Parameter<S, C, A>
 				caseAtomic(Parser<Text, Context<S, C>, Bottom, A> parser, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) {
 					return atomic(parameter.name(), parameter.description(), parser, completer(completer, suggest));
@@ -207,7 +207,7 @@ public abstract class Command<S, C, A> {
 			});
 		}
 		public static <S, C, A> Parameter<S, C, A> describe(Parameter<S, C, A> parameter, String name, String description) {
-			return parameter.match(new Parameter.Match<>() {
+			return parameter.match(new Parameter.Match<S, C, A, Parameter<S, C, A>>() {
 				@Override public Parameter<S, C, A>
 				caseAtomic(Parser<Text, Context<S, C>, Bottom, A> parser, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) {
 					return atomic(name, description, parser, completer);
@@ -260,7 +260,7 @@ public abstract class Command<S, C, A> {
 		public static <S, C> Parser<Text, Context<S, C>, Bottom, List<Completion>> incompletable() { return simple(nil()); }
 
 		public static <S, C, A> Parser<Text, Context<S, C>, Bottom, A> parseParameter(Parameter<S, C, A> parameter) {
-			return parameter.match(new Parameter.Match<>() {
+			return parameter.match(new Parameter.Match<S, C, A, Parser<Text, Context<S, C>, Bottom, A>>() {
 				@Override public Parser<Text, Context<S, C>, Bottom, A>
 				caseAtomic(Parser<Text, Context<S, C>, Bottom, A> parser, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) {
 					return conclude(parser, error("Could not parse command parameter " + escapeString(parameter.name())));
@@ -285,7 +285,7 @@ public abstract class Command<S, C, A> {
 			});
 		}
 		public static <S, C, A> Parser<Text, Context<S, C>, Bottom, List<Completion>> analyzeParameter(Parameter<S, C, A> parameter) {
-			return parameter.match(new Parameter.Match<>() {
+			return parameter.match(new Parameter.Match<S, C, A, Parser<Text, Context<S, C>, Bottom, List<Completion>>>() {
 				@Override public Parser<Text, Context<S, C>, Bottom, List<Completion>>
 				caseAtomic(Parser<Text, Context<S, C>, Bottom, A> parser, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) {
 					return completer;
@@ -347,7 +347,7 @@ public abstract class Command<S, C, A> {
 		public static <T, A> Flow<T, A> external(T t) { return new External<>(t); }
 
 		public static <A> A evalFlow(Flow<Bottom, A> flow) {
-			return flow.match(new Flow.Match<>(){
+			return flow.match(new Flow.Match<Bottom, A, A>(){
 				@Override public A
 				caseValue(A a) {
 					return a;
@@ -416,7 +416,7 @@ public abstract class Command<S, C, A> {
 		public static <S, C, T> Body<S, C, T, Flow<T, Unit>> empty() { return evaluate(value(unit())); }
 
 		public static <S, C, T, A> Parser<Text, Context<S, C>, Bottom, A> parseBody(Body<S, C, T, A> body) {
-			return body.match(new Body.Match<>() {
+			return body.match(new Body.Match<S, C, T, A, Parser<Text, Context<S, C>, Bottom, A>>() {
 				@Override public Parser<Text, Context<S, C>, Bottom, A>
 				caseEvaluate(A a) {
 					return simple(a);
@@ -439,7 +439,7 @@ public abstract class Command<S, C, A> {
 			});
 		}
 		public static <S, C, T, A> Parser<Text, Context<S, C>, Bottom, Either<List<Completion>, A>> analyzeBody(Body<S, C, T, A> body) {
-			return body.match(new Body.Match<>() {
+			return body.match(new Body.Match<S, C, T, A, Parser<Text, Context<S, C>, Bottom, Either<List<Completion>, A>>>() {
 				@Override public Parser<Text, Context<S, C>, Bottom, Either<List<Completion>, A>>
 				caseEvaluate(A a) {
 					return simple(right(a));
@@ -517,7 +517,7 @@ public abstract class Command<S, C, A> {
 		public final String binding() { return binding; }
 
 		public static <S, C, P, A> Parser<Text, Context<S, C>, Bottom, Action<A>> parseBinding(Binding<S, C, P, A> binding, P parameter) {
-			return binding.match(new Binding.Match<>() {
+			return binding.match(new Binding.Match<S, C, P, A, Parser<Text, Context<S, C>, Bottom, Action<A>>>() {
 				@Override public <T, D> Parser<Text, Context<S, C>, Bottom, Action<A>>
 				caseEntry(BiFunction<Context<S, C>, P, Tuple<T, D>> delegator, Command<T, D, A> command) {
 					return localUser(recur(() -> parseCommand(command)), context -> fork(delegator.apply(context, parameter), command, context, parameter, binding.binding()));
@@ -525,7 +525,7 @@ public abstract class Command<S, C, A> {
 			});
 		}
 		public static <S, C, P, A> Parser<Text, Context<S, C>, Bottom, List<Completion>> analyzeBinding(Binding<S, C, P, A> binding, P parameter) {
-			return binding.match(new Binding.Match<>() {
+			return binding.match(new Binding.Match<S, C, P, A, Parser<Text, Context<S, C>, Bottom, List<Completion>>>() {
 				@Override public <T, D> Parser<Text, Context<S, C>, Bottom, List<Completion>>
 				caseEntry(BiFunction<Context<S, C>, P, Tuple<T, D>> delegator, Command<T, D, A> command) {
 					return localUser(recur(() -> analyzeCommand(command)), context -> fork(delegator.apply(context, parameter), command, context, parameter, binding.binding()));
@@ -708,7 +708,7 @@ public abstract class Command<S, C, A> {
 	public final String description() { return description; }
 
 	public static <S, C, A> Parser<Text, Context<S, C>, Bottom, Action<A>> parseCommand(Command<S, C, A> command) {
-		return command.match(new Command.Match<>() {
+		return command.match(new Command.Match<S, C, A, Parser<Text, Context<S, C>, Bottom, Action<A>>>() {
 			@Override public <P> Parser<Text, Context<S, C>, Bottom, Action<A>>
 				caseNode(Definition<S, C, P> definition, Dispatcher<S, C, P, A> dispatcher, Behavior<S, C, P, A> behavior) {
 				return $do(
@@ -729,7 +729,7 @@ public abstract class Command<S, C, A> {
 		});
 	}
 	public static <S, C, A> Parser<Text, Context<S, C>, Bottom, List<Completion>> analyzeCommand(Command<S, C, A> command) {
-		return command.match(new Command.Match<>() {
+		return command.match(new Command.Match<S, C, A, Parser<Text, Context<S, C>, Bottom, List<Completion>>>() {
 			@Override public <P> Parser<Text, Context<S, C>, Bottom, List<Completion>>
 				caseNode(Definition<S, C, P> definition, Dispatcher<S, C, P, A> dispatcher, Behavior<S, C, P, A> behavior) {
 				return $do(
