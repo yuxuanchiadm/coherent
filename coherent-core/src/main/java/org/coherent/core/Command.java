@@ -446,16 +446,11 @@ public abstract class Command<S, C, A> {
 				}
 				@Override public <X> Parser<Text, Context<S, C>, Bottom, Either<List<Completion>, A>>
 				caseDefine(Parameter<S, C, X> parameter, Id<Flow<T, X>, A> id) {
-					return choice($do(
-					$(	attempt(recur(() -> parseParameter(parameter)))	, x ->
-					$(	choice($do(
-						$(	suppress(eof())		, () ->
-						$(	simple(left(nil()))	))
-						), $do(
-						$(	skipMany(space())					, () ->
-						$(	simple(right(id.coerce(value(x))))	))
-						))												))
-					), $do(
+					return choice(attempt($do(
+					$(	recur(() -> parseParameter(parameter))	, x ->
+					$(	skipMany(space())						, () ->
+					$(	simple(right(id.coerce(value(x))))		)))
+					)), $do(
 					$(	recur(() -> analyzeParameter(parameter))	, completions ->
 					$(	simple(left(completions))					))
 					));
@@ -560,14 +555,12 @@ public abstract class Command<S, C, A> {
 		}
 		public static <S, C, P, A> Parser<Text, Context<S, C>, Bottom, List<Completion>> analyzeDispatcher(Dispatcher<S, C, P, A> dispatcher, P parameter) {
 			return choice($do(
-			$(	attempt(recur(() -> parseBindings(dispatcher)))				, binding ->
-			$(	choice($do(
-				$(	suppress(eof())	, () ->
-				$(	simple(nil())	))
-				), $do(
-				$(	skipMany(space())								, () ->
-				$(	recur(() -> analyzeBinding(binding, parameter))	))
-				))															))
+			$(	Parser.<Text, Context<S, C>, Bottom, Binding<S, C, P, A>> attempt($do(
+				$(	recur(() -> parseBindings(dispatcher))		, binding ->
+				$(	skipMany(space())							, () ->
+				$(	simple(binding)								)))
+				))																, binding ->
+			$(	recur(() -> analyzeBinding(binding, parameter))					))
 			), $do(
 			$(	getStream()													, input ->
 			$(	getLocation()												, location ->

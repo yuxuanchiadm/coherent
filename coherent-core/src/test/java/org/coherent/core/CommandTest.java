@@ -87,7 +87,7 @@ public class CommandTest {
 
 		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result6 = completeCommand(rootCommand, text("test"), unit(), unit());
 		assertTrue(result6.isSuccess());
-		assertEquals(list(), result6.coerceResult());
+		assertEquals(list(completion(text("test"), location())), result6.coerceResult());
 
 		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result7 = completeCommand(rootCommand, text("test "), unit(), unit());
 		assertTrue(result7.isSuccess());
@@ -170,10 +170,12 @@ public class CommandTest {
 		assertEquals(list(), result11.coerceResult());
 
 		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result12 = completeCommand(rootCommand, text("test\"foo\" 12450"), unit(), unit());
-		assertTrue(result12.isFail());
+		assertTrue(result12.isSuccess());
+		assertEquals(list(), result12.coerceResult());
 
 		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result13 = completeCommand(rootCommand, text("test \"foo\"12450"), unit(), unit());
-		assertTrue(result13.isFail());
+		assertTrue(result13.isSuccess());
+		assertEquals(list(), result13.coerceResult());
 
 		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result14 = completeCommand(rootCommand, text("test \"foo\" 12450 bar"), unit(), unit());
 		assertTrue(result14.isSuccess());
@@ -416,7 +418,7 @@ public class CommandTest {
 
 		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result7 = completeCommand(rootCommand, text("test help"), unit(), unit());
 		assertTrue(result7.isSuccess());
-		assertEquals(list(), result7.coerceResult());
+		assertEquals(list(completion(text("help"), location().advanceString("test "))), result7.coerceResult());
 
 		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result8 = completeCommand(rootCommand, text("test de"), unit(), unit());
 		assertTrue(result8.isSuccess());
@@ -424,14 +426,16 @@ public class CommandTest {
 
 		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result9 = completeCommand(rootCommand, text("test debug"), unit(), unit());
 		assertTrue(result9.isSuccess());
-		assertEquals(list(), result9.coerceResult());
+		assertEquals(list(completion(text("debug"), location().advanceString("test "))), result9.coerceResult());
 
 		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result10 = completeCommand(rootCommand, text("test foo"), unit(), unit());
 		assertTrue(result10.isSuccess());
 		assertEquals(list(), result10.coerceResult());
 
 		Result<Text, Context<Unit, Unit>, Bottom, List<Completion>> result11 = completeCommand(rootCommand, text("testhelp"), unit(), unit());
-		assertTrue(result11.isFail());
+		assertTrue(result11.isSuccess());
+		assertEquals(list(), result11.coerceResult());
+
 	}
 	@Test public void testRejected() {
 		Command<Unit, Unit, Unit> testCommand = command(
