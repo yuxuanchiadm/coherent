@@ -17,6 +17,8 @@ import org.coherent.core.Command.Flow;
 import static org.coherent.core.Command.Flow.*;
 import org.coherent.core.Command.Body;
 import static org.coherent.core.Command.Body.*;
+import org.coherent.core.Command.Delegator;
+import static org.coherent.core.Command.Delegator.*;
 import org.coherent.core.Command.Binding;
 import static org.coherent.core.Command.Binding.*;
 import org.coherent.core.Command.Dispatcher;
@@ -483,14 +485,35 @@ public abstract class Command<S, C, A> {
 			public static <S, C, T, A, B> Body<S, C, T, B> $(Body<S, C, T, A> fa, Supplier<Body<S, C, T, B>> fb) { return fa.flatMap(a -> fb.get()); }
 		}
 	}
+	public static final class Delegator<S, C, T, D, P> {
+		final Function<P, Parser<Text, Context<S, C>, Bottom, Tuple<T, D>>> delegator;
+
+		Delegator(Function<P, Parser<Text, Context<S, C>, Bottom, Tuple<T, D>>> delegator) { this.delegator = delegator; }
+
+		public static <S, C, T, D, P> Delegator<S, C, T, D, P> delegator(Function<P, Parser<Text, Context<S, C>, Bottom, Tuple<T, D>>> delegator) { return new Delegator<>(delegator); }
+		public static <S, C, P> Delegator<S, C, S, P, P> forward() {
+			return delegator(parameter -> $do(
+			$(	getUser()									, context ->
+			$(	simple(tuple(context.source(), parameter))	))
+			));
+		}
+		public static <S, C, P> Delegator<S, C, S, C, P> pass() {
+			return delegator(parameter -> $do(
+			$(	getUser()						, context ->
+			$(	simple(context.environment())	))
+			));
+		}
+
+		public Function<P, Parser<Text, Context<S, C>, Bottom, Tuple<T, D>>> delegator() { return delegator; }
+	}
 	public static abstract class Binding<S, C, P, A> {
 		public static final class Entry<S, C, T, D, P, A> extends Binding<S, C, P, A> {
-			final BiFunction<Context<S, C>, P, Tuple<T, D>> delegator;
+			final Delegator<S, C, T, D, P> delegator;
 			final Command<T, D, A> command;
 
-			Entry(String binding, BiFunction<Context<S, C>, P, Tuple<T, D>> delegator, Command<T, D, A> command) { super(binding); this.delegator = delegator; this.command = command; }
+			Entry(String binding, Delegator<S, C, T, D, P> delegator, Command<T, D, A> command) { super(binding); this.delegator = delegator; this.command = command; }
 
-			public interface Case<S, C, P, A, R> { <T, D> R caseEntry(BiFunction<Context<S, C>, P, Tuple<T, D>> delegator, Command<T, D, A> command); }
+			public interface Case<S, C, P, A, R> { <T, D> R caseEntry(Delegator<S, C, T, D, P> delegator, Command<T, D, A> command); }
 			@Override public <R> R caseof(Entry.Case<S, C, P, A, R> caseEntry) { return caseEntry.caseEntry(delegator, command); }
 
 			@Override public <B> Binding<S, C, P, B> map(Function<A, B> f) { return entry(binding, delegator, command.map(f)); }
@@ -504,26 +527,34 @@ public abstract class Command<S, C, A> {
 		public final <R> R match(Match<S, C, P, A, R> match) { return caseof(match); }
 		public abstract <R> R caseof(Entry.Case<S, C, P, A, R> caseEntry);
 
-		public static <S, C, T, D, P, A> Binding<S, C, P, A> entry(String binding, BiFunction<Context<S, C>, P, Tuple<T, D>> delegator, Command<T, D, A> command) { return new Entry<>(binding, delegator, command); }
-		public static <S, C, P, A> Binding<S, C, P, A> entry(String binding, Command<S, C, A> command) { return entry(binding, (context, parameter) -> context.environment(), command); }
-		public static <S, C, T, D, P, A> Binding<S, C, P, A> entry(BiFunction<Context<S, C>, P, Tuple<T, D>> delegator, Command<T, D, A> command) { return entry(command.name(), delegator, command); }
-		public static <S, C, P, A> Binding<S, C, P, A> entry(Command<S, C, A> command) { return entry(command.name(), (context, parameter) -> context.environment(), command); }
+		public static <S, C, T, D, P, A> Binding<S, C, P, A> entry(String binding, Delegator<S, C, T, D, P> delegator, Command<T, D, A> command) { return new Entry<>(binding, delegator, command); }
+		public static <S, C, P, A> Binding<S, C, P, A> entry(String binding, Command<S, C, A> command) { return entry(binding, pass(), command); }
+		public static <S, C, T, D, P, A> Binding<S, C, P, A> entry(Delegator<S, C, T, D, P> delegator, Command<T, D, A> command) { return entry(command.name(), delegator, command); }
+		public static <S, C, P, A> Binding<S, C, P, A> entry(Command<S, C, A> command) { return entry(command.name(), pass(), command); }
 
 		public final String binding() { return binding; }
 
 		public static <S, C, P, A> Parser<Text, Context<S, C>, Bottom, Action<A>> parseBinding(Binding<S, C, P, A> binding, P parameter) {
 			return binding.match(new Binding.Match<S, C, P, A, Parser<Text, Context<S, C>, Bottom, Action<A>>>() {
 				@Override public <T, D> Parser<Text, Context<S, C>, Bottom, Action<A>>
-				caseEntry(BiFunction<Context<S, C>, P, Tuple<T, D>> delegator, Command<T, D, A> command) {
-					return localUser(recur(() -> parseCommand(command)), context -> fork(delegator.apply(context, parameter), command, context, parameter, binding.binding()));
+				caseEntry(Delegator<S, C, T, D, P> delegator, Command<T, D, A> command) {
+					return $do(
+					$(	getUser()																													, context ->
+					$(	delegator.delegator().apply(parameter)																						, environment ->
+					$(	localUser(recur(() -> parseCommand(command)), ignore -> fork(environment, command, context, parameter, binding.binding()))	)))
+					);
 				}
 			});
 		}
 		public static <S, C, P, A> Parser<Text, Context<S, C>, Bottom, List<Completion>> analyzeBinding(Binding<S, C, P, A> binding, P parameter) {
 			return binding.match(new Binding.Match<S, C, P, A, Parser<Text, Context<S, C>, Bottom, List<Completion>>>() {
 				@Override public <T, D> Parser<Text, Context<S, C>, Bottom, List<Completion>>
-				caseEntry(BiFunction<Context<S, C>, P, Tuple<T, D>> delegator, Command<T, D, A> command) {
-					return localUser(recur(() -> analyzeCommand(command)), context -> fork(delegator.apply(context, parameter), command, context, parameter, binding.binding()));
+				caseEntry(Delegator<S, C, T, D, P> delegator, Command<T, D, A> command) {
+					return $do(
+					$(	getUser()																														, context ->
+					$(	delegator.delegator().apply(parameter)																							, environment ->
+					$(	localUser(recur(() -> analyzeCommand(command)), ignore -> fork(environment, command, context, parameter, binding.binding()))	)))
+					);
 				}
 			});
 		}
@@ -650,6 +681,9 @@ public abstract class Command<S, C, A> {
 		public abstract <R> R caseof(Handler.Case<S, C, P, A, R> caseHandler, Stub.Case<S, C, P, A, R> caseStub);
 
 		public static <S, C, P, A> Behavior<S, C, P, A> handler(BiFunction<Context<S, C>, P, Action<A>> handler) { return new Handler<>(handler); }
+		public static <S, C, P, A> Behavior<S, C, P, A> handler(Function<Context<S, C>, Action<A>> handler) { return handler((context, parameter) -> handler.apply(context)); }
+		public static <S, C, P, A> Behavior<S, C, P, A> action(Function<P, Action<A>> action) { return handler((context, parameter) -> action.apply(parameter)); }
+		public static <S, C, P, A> Behavior<S, C, P, A> action(Action<A> action) { return handler((context, parameter) -> action); }
 		public static <S, C, P, A> Behavior<S, C, P, A> stub() { return new Stub<>(); }
 
 		public abstract <B> Behavior<S, C, P, B> map(Function<A, B> f);

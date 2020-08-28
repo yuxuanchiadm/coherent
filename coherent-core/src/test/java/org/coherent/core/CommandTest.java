@@ -381,11 +381,9 @@ public class CommandTest {
 			Body::empty,
 			dispatcher(entry(
 				"help",
-				(context, parameter) -> context.environment(),
 				helpCommand
 			), entry(
 				"debug",
-				(context, parameter) -> context.environment(),
 				debugCommand
 			)),
 			handler((context, parameter) -> handled(() -> parameter))
