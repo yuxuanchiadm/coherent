@@ -318,16 +318,16 @@ public abstract class Command<S, C, A> {
 			Value(A a) { this.a = a; }
 
 			public interface Case<T, A, R> { R caseValue(A a); }
-			@Override public <R> R caseof(Value.Case<T, A, R> caseValue, External.Case<T, A, R> caseExternal, FlatMap.Case<T, A, R> caseFlatMap) { return caseValue.caseValue(a); }
+			@Override public <R> R caseof(Value.Case<T, A, R> caseValue, Foreign.Case<T, A, R> caseForeign, FlatMap.Case<T, A, R> caseFlatMap) { return caseValue.caseValue(a); }
 
 		}
-		public static final class External<T, A> extends Flow<T, A> {
+		public static final class Foreign<T, A> extends Flow<T, A> {
 			final T t;
 
-			External(T t) { this.t = t; }
+			Foreign(T t) { this.t = t; }
 
-			public interface Case<T, A, R> { R caseExternal(T t); }
-			@Override public <R> R caseof(Value.Case<T, A, R> caseValue, External.Case<T, A, R> caseExternal, FlatMap.Case<T, A, R> caseFlatMap) { return caseExternal.caseExternal(t); }
+			public interface Case<T, A, R> { R caseForeign(T t); }
+			@Override public <R> R caseof(Value.Case<T, A, R> caseValue, Foreign.Case<T, A, R> caseForeign, FlatMap.Case<T, A, R> caseFlatMap) { return caseForeign.caseForeign(t); }
 		}
 		public static final class FlatMap<T, X, A> extends Flow<T, A> {
 			final Flow<T, X> fx;
@@ -336,17 +336,17 @@ public abstract class Command<S, C, A> {
 			FlatMap(Flow<T, X> fx, Function<X, Flow<T, A>> f) { this.fx = fx; this.f = f; }
 
 			public interface Case<T, A, R> { <X> R caseFlatMap(Flow<T, X> fx, Function<X, Flow<T, A>> f); }
-			@Override public <R> R caseof(Value.Case<T, A, R> caseValue, External.Case<T, A, R> caseExternal, FlatMap.Case<T, A, R> caseFlatMap) { return caseFlatMap.caseFlatMap(fx, f); }
+			@Override public <R> R caseof(Value.Case<T, A, R> caseValue, Foreign.Case<T, A, R> caseForeign, FlatMap.Case<T, A, R> caseFlatMap) { return caseFlatMap.caseFlatMap(fx, f); }
 		}
 
 		Flow() {}
 
-		public interface Match<T, A, R> extends Value.Case<T, A, R>, External.Case<T, A, R>, FlatMap.Case<T, A, R> {}
+		public interface Match<T, A, R> extends Value.Case<T, A, R>, Foreign.Case<T, A, R>, FlatMap.Case<T, A, R> {}
 		public final <R> R match(Match<T, A, R> match) { return caseof(match, match, match); }
-		public abstract <R> R caseof(Value.Case<T, A, R> caseEvaluate, External.Case<T, A, R> caseDefine, FlatMap.Case<T, A, R> caseFlatMap);
+		public abstract <R> R caseof(Value.Case<T, A, R> caseEvaluate, Foreign.Case<T, A, R> caseDefine, FlatMap.Case<T, A, R> caseFlatMap);
 
 		public static <T, A> Flow<T, A> value(A a) { return new Value<>(a); }
-		public static <T, A> Flow<T, A> external(T t) { return new External<>(t); }
+		public static <T, A> Flow<T, A> foreign(T t) { return new Foreign<>(t); }
 
 		public static <A> A evalFlow(Flow<Bottom, A> flow) {
 			return flow.match(new Flow.Match<Bottom, A, A>(){
@@ -355,7 +355,7 @@ public abstract class Command<S, C, A> {
 					return a;
 				}
 				@Override public A
-				caseExternal(Bottom t) {
+				caseForeign(Bottom t) {
 					return absurd(t);
 				}
 				@Override public <X> A
