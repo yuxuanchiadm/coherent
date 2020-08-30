@@ -540,9 +540,8 @@ public abstract class Command<S, C, A> {
 				@Override public <T, D> Parser<Text, Context<S, C>, Bottom, Action<A>>
 				caseEntry(Delegator<S, C, T, D, P> delegator, Command<T, D, A> command) {
 					return $do(
-					$(	getUser()																													, context ->
 					$(	delegator.delegator().apply(parameter)																						, environment ->
-					$(	localUser(recur(() -> parseCommand(command)), ignore -> fork(environment, command, context, parameter, binding.binding()))	)))
+					$(	localUser(recur(() -> parseCommand(command)), context -> fork(environment, command, context, parameter, binding.binding()))	))
 					);
 				}
 			});
@@ -552,9 +551,8 @@ public abstract class Command<S, C, A> {
 				@Override public <T, D> Parser<Text, Context<S, C>, Bottom, List<Completion>>
 				caseEntry(Delegator<S, C, T, D, P> delegator, Command<T, D, A> command) {
 					return $do(
-					$(	getUser()																														, context ->
 					$(	delegator.delegator().apply(parameter)																							, environment ->
-					$(	localUser(recur(() -> analyzeCommand(command)), ignore -> fork(environment, command, context, parameter, binding.binding()))	)))
+					$(	localUser(recur(() -> analyzeCommand(command)), context -> fork(environment, command, context, parameter, binding.binding()))	))
 					);
 				}
 			});
