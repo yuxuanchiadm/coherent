@@ -265,7 +265,7 @@ public abstract class Command<S, C, A> {
 			return parameter.match(new Parameter.Match<S, C, A, Parser<Text, Context<S, C>, Bottom, A>>() {
 				@Override public Parser<Text, Context<S, C>, Bottom, A>
 				caseAtomic(Parser<Text, Context<S, C>, Bottom, A> parser, Parser<Text, Context<S, C>, Bottom, List<Completion>> completer) {
-					return conclude(parser, error("Could not parse command parameter " + escapeString(parameter.name())));
+					return supplement(parser, error("Could not parse command parameter " + escapeString(parameter.name())));
 				}
 				@Override public <X> Parser<Text, Context<S, C>, Bottom, A>
 				caseUnion(List<Parameter<S, C, X>> parameters, Function<X, Parser<Text, Context<S, C>, Bottom, A>> extend, Parser<Text, Context<S, C>, Bottom, List<Completion>> suggest) {
@@ -491,6 +491,7 @@ public abstract class Command<S, C, A> {
 		Delegator(Function<P, Parser<Text, Context<S, C>, Bottom, Tuple<T, D>>> delegator) { this.delegator = delegator; }
 
 		public static <S, C, T, D, P> Delegator<S, C, T, D, P> delegator(Function<P, Parser<Text, Context<S, C>, Bottom, Tuple<T, D>>> delegator) { return new Delegator<>(delegator); }
+		public static <S, C, T, D, P> Delegator<S, C, T, D, P> delegator(Parser<Text, Context<S, C>, Bottom, Tuple<T, D>> delegator) { return delegator(parameter -> delegator); }
 		public static <S, C, P> Delegator<S, C, S, P, P> forward() {
 			return delegator(parameter -> $do(
 			$(	getUser()									, context ->
@@ -572,7 +573,7 @@ public abstract class Command<S, C, A> {
 		public List<Binding<S, C, P, A>> bindings() { return bindings; }
 
 		public static <S, C, P, A> Parser<Text, Context<S, C>, Bottom, Binding<S, C, P, A>> parseBindings(Dispatcher<S, C, P, A> dispatcher) {
-			return conclude(dispatcher.bindings().foldl(
+			return supplement(dispatcher.bindings().foldl(
 				(parser, binding) -> choice(replace(string(binding.binding()), binding), parser),
 				ignore()
 			), error("Could not parse command binding"));

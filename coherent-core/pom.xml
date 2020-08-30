@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.coherent</groupId>
 		<artifactId>coherent-parent</artifactId>
-		<version>1.10.0</version>
+		<version>1.11.0</version>
 	</parent>
 	<artifactId>coherent-core</artifactId>
 	<name>CoherentCore</name>
@@ -23,7 +23,7 @@
 		<dependency>
 			<groupId>org.jparsec</groupId>
 			<artifactId>jparsec-core</artifactId>
-			<version>1.7.0</version>
+			<version>1.9.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>

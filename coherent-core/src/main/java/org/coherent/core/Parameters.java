@@ -24,8 +24,8 @@ public final class Parameters {
 		return parameter(
 			name,
 			description,
-			Arrays.stream(options)
-				.reduce(ignore(), (parser, option) -> parser.plus(replace(string(option.first()), option.second())), Parser::plus),
+			suppress(Arrays.stream(options)
+				.reduce(ignore(), (parser, option) -> parser.plus(replace(string(option.first()), option.second())), Parser::plus)),
 			completer(Arrays.stream(options).map(option -> text(option.first())).toArray(Text[]::new))
 		);
 	}
@@ -34,8 +34,8 @@ public final class Parameters {
 		return parameter(
 			name,
 			description,
-			Arrays.stream(literals)
-				.reduce(ignore(), (parser, literal) -> parser.plus(string(literal)), Parser::plus),
+			suppress(Arrays.stream(literals)
+				.reduce(ignore(), (parser, literal) -> parser.plus(string(literal)), Parser::plus)),
 			completer(Arrays.stream(literals).map(literal -> text(literal)).toArray(Text[]::new))
 		);
 	}
@@ -44,7 +44,7 @@ public final class Parameters {
 		return parameter(
 			name,
 			description,
-			stringDissatisfy(Character::isWhitespace),
+			suppress(stringDissatisfy(Character::isWhitespace)),
 			incompletable()
 		);
 	}
@@ -53,7 +53,7 @@ public final class Parameters {
 		return parameter(
 			name,
 			description,
-			readBoolean(),
+			suppress(readBoolean()),
 			completer(text("false"), text("true"))
 		);
 	}
@@ -62,7 +62,7 @@ public final class Parameters {
 		return parameter(
 			name,
 			description,
-			readByte(),
+			suppress(readByte()),
 			incompletable()
 		);
 	}
@@ -71,7 +71,7 @@ public final class Parameters {
 		return parameter(
 			name,
 			description,
-			readShort(),
+			suppress(readShort()),
 			incompletable()
 		);
 	}
@@ -80,7 +80,7 @@ public final class Parameters {
 		return parameter(
 			name,
 			description,
-			readInteger(),
+			suppress(readInteger()),
 			incompletable()
 		);
 	}
@@ -89,7 +89,7 @@ public final class Parameters {
 		return parameter(
 			name,
 			description,
-			readLong(),
+			suppress(readLong()),
 			incompletable()
 		);
 	}
@@ -98,7 +98,7 @@ public final class Parameters {
 		return parameter(
 			name,
 			description,
-			readFloat(),
+			suppress(readFloat()),
 			incompletable()
 		);
 	}
@@ -107,7 +107,7 @@ public final class Parameters {
 		return parameter(
 			name,
 			description,
-			readDouble(),
+			suppress(readDouble()),
 			incompletable()
 		);
 	}
@@ -116,7 +116,7 @@ public final class Parameters {
 		return parameter(
 			name,
 			description,
-			readCharacter(),
+			suppress(readCharacter()),
 			completer(text("'"))
 		);
 	}
@@ -125,7 +125,7 @@ public final class Parameters {
 		return parameter(
 			name,
 			description,
-			readString(),
+			suppress(readString()),
 			completer(text("\""))
 		);
 	}
