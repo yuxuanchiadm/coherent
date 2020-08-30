@@ -574,7 +574,7 @@ public abstract class Command<S, C, A> {
 
 		public static <S, C, P, A> Parser<Text, Context<S, C>, Bottom, Binding<S, C, P, A>> parseBindings(Dispatcher<S, C, P, A> dispatcher) {
 			return supplement(dispatcher.bindings().foldl(
-				(parser, binding) -> choice(replace(string(binding.binding()), binding), parser),
+				(parser, binding) -> choice(parser, replace(string(binding.binding()), binding)),
 				ignore()
 			), error("Could not parse command binding"));
 		}
